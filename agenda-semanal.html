@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mi agenda</title>
+<style>
+  :root{
+    --bg: #f6f5f1;
+    --panel: #ffffff;
+    --ink: #232320;
+    --ink-soft: #6b6a64;
+    --line: #e2dfd6;
+    --line-strong: #cfccc0;
+
+    --recurrente: #3a6b63;
+    --recurrente-bg: #e3ede9;
+    --aislada: #b5652d;
+    --aislada-bg: #f3e5d8;
+    --personal: #6b5b95;
+    --personal-bg: #e9e5f2;
+
+    --radius: 10px;
+    --font-ui: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-num: 'IBM Plex Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body{ height:100%; margin:0; }
+
+  body{
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    height:100dvh;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:14px 16px 10px;
+    flex-shrink:0;
+  }
+  header h1{
+    font-size:1.25rem;
+    font-weight:700;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .week-nav{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:var(--font-num);
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .week-nav button{
+    width:28px; height:28px;
+    border-radius:50%;
+    border:1px solid var(--line-strong);
+    background:var(--panel);
+    cursor:pointer;
+    font-size:1rem;
+    line-height:1;
+    color:var(--ink);
+  }
+  .week-nav button:hover{ background:var(--line); }
+  .week-nav .today-btn{
+    width:auto;
+    border-radius:20px;
+    padding:0 10px;
+    font-family:var(--font-ui);
+    font-size:0.78rem;
+  }
+
+  .btn-primary{
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:20px;
+    padding:9px 16px;
+    font-family:var(--font-ui);
+    font-size:0.85rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .btn-primary:hover{ opacity:0.88; }
+
+  .legend{
+    display:flex;
+    gap:14px;
+    padding:0 16px 8px;
+    flex-wrap:wrap;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .legend span{ display:flex; align-items:center; gap:5px; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+  .calendar-wrap{
+    flex:1;
+    min-height:0;
+    padding:0 12px 10px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    display:flex;
+  }
+  .calendar{
+    flex:1;
+    display:grid;
+    grid-template-columns: 40px repeat(3, minmax(84px, 1fr));
+    grid-template-rows: auto auto 1fr;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    min-width:0;
+  }
+  .task-row-label{
+    border-bottom:1px solid var(--line-strong);
+    background:var(--bg);
+    font-size:0.58rem;
+    color:var(--ink-soft);
+    text-align:right;
+    padding:3px 4px 3px 0;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    position:relative;
+    z-index:2;
+    will-change:transform;
+  }
+  .task-row{
+    border-left:1px solid var(--line);
+    border-bottom:1px solid var(--line-strong);
+    padding:3px;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    background:#fbfaf7;
+    min-height:20px;
+  }
+  .task-chip{
+    background:var(--personal-bg);
+    color:#3a3059;
+    border-left:3px solid var(--personal);
+    border-radius:5px;
+    padding:2px 6px;
+    font-size:0.68rem;
+    font-weight:600;
+    cursor:pointer;
+    white-space:pre-line;
+    overflow:hidden;
+  }
+  .day-head{
+    padding:6px 4px;
+    text-align:center;
+    border-left:1px solid var(--line);
+    border-bottom:1px solid var(--line-strong);
+    background:var(--panel);
+  }
+  .day-head .dname{
+    font-size:0.7rem;
+    text-transform:lowercase;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+  .day-head .dnum{
+    font-family:var(--font-num);
+    font-size:0.95rem;
+    font-weight:600;
+  }
+  .day-head.is-today .dnum{ color:var(--recurrente); }
+  .corner{
+    border-bottom:1px solid var(--line-strong);
+    background:var(--bg);
+    position:relative;
+    z-index:3;
+    will-change:transform;
+  }
+
+  .time-col{
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    height:100%;
+    position:relative;
+    z-index:2;
+    will-change:transform;
+  }
+  .time-slot{
+    flex:1;
+    min-height:0;
+    text-align:right;
+    padding-right:4px;
+    font-family:var(--font-num);
+    font-size:0.62rem;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+  }
+
+  .day-col{
+    position:relative;
+    border-left:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    height:100%;
+  }
+  .hour-line{
+    flex:1;
+    min-height:0;
+    border-top:1px solid var(--line);
+  }
+  .hour-line:first-child{ border-top:none; }
+
+  .event-block{
+    position:absolute;
+    left:2px; right:2px;
+    border-radius:5px;
+    padding:2px 5px 0;
+    font-size:0.72rem;
+    line-height:1.15;
+    overflow:hidden;
+    cursor:pointer;
+    border-left:3px solid transparent;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+  }
+  .event-block.stacked{ font-size:0.62rem; padding:0 5px; }
+  .event-block.quad{ font-size:0.68rem; padding:2px 3px; }
+  .event-block.quad .ev-title{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    line-height:1.08;
+    word-break:break-word;
+  }
+  .event-block .ev-title{
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .event-block .ev-time{
+    font-family:var(--font-num);
+    font-size:0.6rem;
+    opacity:0.85;
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  .type-recurrente{ background:var(--recurrente-bg); border-left-color:var(--recurrente); color:#1f3d38; }
+  .type-aislada{ background:var(--aislada-bg); border-left-color:var(--aislada); color:#5c3617; }
+  .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#3a3059; }
+
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(35,35,32,0.4);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    z-index:50;
+  }
+  .overlay.open{ display:flex; }
+  .modal{
+    background:var(--panel);
+    border-radius:14px;
+    width:100%;
+    max-width:420px;
+    max-height:90vh;
+    overflow-y:auto;
+    padding:22px;
+  }
+  .modal h2{ margin:0 0 16px; font-size:1.1rem; }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-size:0.78rem;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+  }
+  .field input, .field select, .field textarea{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line-strong);
+    border-radius:8px;
+    font-family:var(--font-ui);
+    font-size:0.9rem;
+    background:#fdfcfa;
+  }
+  .field textarea{ resize:vertical; min-height:50px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .time-select{
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .time-select select{
+    text-align:center;
+    font-family:var(--font-num);
+  }
+  .time-select span{
+    font-family:var(--font-num);
+    color:var(--ink-soft);
+    font-weight:700;
+  }
+
+  .type-picker{ display:flex; gap:8px; margin-bottom:16px; }
+  .type-picker button{
+    flex:1;
+    padding:9px 4px;
+    border-radius:8px;
+    border:1.5px solid var(--line-strong);
+    background:#fff;
+    font-family:var(--font-ui);
+    font-size:0.78rem;
+    font-weight:600;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .type-picker button.active[data-t="recurrente"]{ border-color:var(--recurrente); color:var(--recurrente); background:var(--recurrente-bg); }
+  .type-picker button.active[data-t="aislada"]{ border-color:var(--aislada); color:var(--aislada); background:var(--aislada-bg); }
+  .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:var(--personal); background:var(--personal-bg); }
+
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+  .btn-ghost{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-family:var(--font-ui);
+    font-size:0.88rem;
+    cursor:pointer;
+    padding:9px 10px;
+  }
+  .hidden{ display:none !important; }
+
+  #detailModal .detail-type{
+    display:inline-block;
+    font-size:0.72rem;
+    font-weight:700;
+    padding:3px 10px;
+    border-radius:20px;
+    margin-bottom:10px;
+  }
+  #detailModal .detail-time{
+    font-family:var(--font-num);
+    color:var(--ink-soft);
+    font-size:0.85rem;
+    margin-bottom:4px;
+  }
+  #detailModal .detail-loc, #detailModal .detail-notes{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+  .share-btn{
+    width:100%;
+    margin-top:16px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:8px;
+    padding:11px;
+    font-family:var(--font-ui);
+    font-size:0.88rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .share-hint{
+    font-size:0.74rem;
+    color:var(--ink-soft);
+    margin-top:6px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>@clasesDeNati</h1>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div class="week-nav">
+      <button id="prevWeek" aria-label="Días anteriores">‹</button>
+      <span id="weekLabel">—</span>
+      <button id="nextWeek" aria-label="Días siguientes">›</button>
+      <button class="today-btn" id="todayBtn">Hoy</button>
+    </div>
+    <button class="btn-ghost" id="newEventBtn" style="border:1.5px solid var(--ink);border-radius:20px;">+ Nuevo</button>
+  </div>
+  <div style="flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-ghost" id="availabilityBtn" style="border:1.5px solid var(--recurrente);border-radius:20px;">Cupos</button>
+    <button class="btn-ghost" id="waitlistBtn" style="border:1.5px solid var(--personal);border-radius:20px;">Espera</button>
+    <button class="btn-ghost" id="debtorsBtn" style="border:1.5px solid var(--aislada);border-radius:20px;">Deben</button>
+    <button class="btn-ghost" id="exportBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Exp</button>
+    <button class="btn-ghost" id="importBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Imp</button>
+    <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
+  </div>
+</header>
+
+
+<div class="calendar-wrap">
+  <div class="calendar" id="calendar"></div>
+</div>
+
+<!-- ============ MODAL: crear / editar evento ============ -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h2 id="editModalTitle">Nuevo evento</h2>
+
+    <div class="type-picker" id="typePicker">
+      <button data-t="recurrente" type="button">Agenda</button>
+      <button data-t="aislada" type="button">Extra</button>
+      <button data-t="personal" type="button">Tareas</button>
+    </div>
+
+    <div class="field">
+      <label for="f-title" id="f-title-label">Nombre del alumno</label>
+      <input type="text" id="f-title">
+      <textarea id="f-title-multiline" class="hidden" rows="3" style="resize:vertical;"></textarea>
+    </div>
+
+    <div id="fieldsRecurrente">
+      <div class="field">
+        <label for="f-day">Día de la semana</label>
+        <select id="f-day">
+          <option value="0">Lunes</option>
+          <option value="1">Martes</option>
+          <option value="2">Miércoles</option>
+          <option value="3">Jueves</option>
+          <option value="4">Viernes</option>
+          <option value="5">Sábado</option>
+          <option value="6">Domingo</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-startdate">Empieza el</label>
+          <input type="date" id="f-startdate">
+        </div>
+        <div class="field">
+          <label for="f-untildate">Repetir hasta (opcional)</label>
+          <input type="date" id="f-untildate">
+        </div>
+      </div>
+    </div>
+
+    <div id="fieldsFecha" class="field">
+      <label for="f-date">Fecha</label>
+      <input type="date" id="f-date">
+    </div>
+
+    <div class="row2" id="fieldsTime">
+      <div class="field">
+        <label>Hora inicio</label>
+        <select id="f-start-h"></select>
+      </div>
+      <div class="field">
+        <label>Hora fin</label>
+        <select id="f-end-h"></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="f-notes">Notas (opcional)</label>
+      <textarea id="f-notes" placeholder="Detalles para vos o para tus alumnos"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelEditBtn">Cancelar</button>
+      <button class="btn-primary" id="saveEventBtn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ver detalle de un evento ============ -->
+<div class="overlay" id="detailOverlay">
+  <div class="modal" id="detailModal">
+    <span class="detail-type" id="d-type"></span>
+    <h2 id="d-title" style="white-space:pre-line;"></h2>
+    <div class="detail-time" id="d-time"></div>
+    <div class="detail-time" id="d-day"></div>
+    <div class="detail-loc" id="d-loc"></div>
+    <div class="detail-notes" id="d-notes"></div>
+
+    <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
+      <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);">
+        <input type="checkbox" id="d-paid" style="width:auto;"> Pagó
+      </label>
+    </div>
+
+    <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
+    <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--personal);">Enviar deberes</button>
+    <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
+
+    <div class="field hidden" id="rescheduleField" style="margin-top:14px;">
+      <button class="btn-ghost" id="rescheduleBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">↔️ Cambiar este día</button>
+      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Se saca la clase normal ese día y te dejo un evento Extra para que pongas el nuevo horario o día. Las demás semanas siguen igual.</div>
+    </div>
+
+    <div class="field hidden" id="deleteScopeField" style="margin-top:14px;">
+      <label for="d-delete-scope">Eliminar</label>
+      <select id="d-delete-scope">
+        <option value="one">Solo este día</option>
+        <option value="future">Este día y los siguientes</option>
+        <option value="all">Toda la serie, desde el principio</option>
+      </select>
+    </div>
+
+    <div class="hidden" id="deleteConfirmBox" style="margin-top:12px;padding:12px;background:#fbeceb;border-radius:8px;">
+      <div style="font-size:0.85rem;color:#7a2e22;margin-bottom:10px;" id="deleteConfirmText">¿Seguro?</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" id="cancelDeleteBtn" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;">Cancelar</button>
+        <button class="btn-primary" id="confirmDeleteBtn" style="flex:1;background:#b5432f;">Sí, eliminar</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost" id="deleteEventBtn">Eliminar</button>
+      <button class="btn-ghost" id="editFromDetailBtn">Editar</button>
+      <button class="btn-primary" id="closeDetailBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: alumnos que deben ============ -->
+<div class="overlay" id="debtorsOverlay">
+  <div class="modal">
+    <h2>Alumnos que deben</h2>
+    <div id="debtorsList" style="font-size:0.88rem;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeDebtorsBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: horarios de referencia y disponibilidad ============ -->
+<div class="overlay" id="availabilityOverlay">
+  <div class="modal">
+    <h2>Horarios de referencia</h2>
+    <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:10px;">Lunes a viernes, 4 alumnos por horario.</div>
+    <div id="refHorariosList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:22px;">
+      <select id="newHorarioSelect" style="flex:1;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;font-family:var(--font-num);background:#fdfcfa;"></select>
+      <button class="btn-ghost" id="addHorarioBtn" style="border:1px solid var(--line-strong);border-radius:8px;white-space:nowrap;">+ Agregar</button>
+    </div>
+
+    <h2>Disponibilidad</h2>
+    <div id="availabilityList" style="font-size:0.85rem;"></div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeAvailabilityBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: lista de espera ============ -->
+<div class="overlay" id="waitlistOverlay">
+  <div class="modal">
+    <h2>Lista de espera</h2>
+    <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:12px;">Para un día y horario puntual. Si se libera ese cupo, te avisa acá y al borrar la clase.</div>
+
+    <div class="field">
+      <label for="w-title">Nombre</label>
+      <input type="text" id="w-title">
+    </div>
+    <div class="field">
+      <label for="w-date">Fecha</label>
+      <input type="date" id="w-date">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Hora inicio</label>
+        <select id="w-start-h"></select>
+      </div>
+      <div class="field">
+        <label>Hora fin</label>
+        <select id="w-end-h"></select>
+      </div>
+    </div>
+    <button class="btn-primary" id="addWaitlistBtn" style="width:100%;margin-bottom:20px;">+ Agregar a la lista</button>
+
+    <div id="waitlistList" style="font-size:0.85rem;"></div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeWaitlistBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: aviso de cupo liberado ============ -->
+<div class="overlay" id="waitlistMatchOverlay">
+  <div class="modal">
+    <h2>🙋 Hay gente esperando este horario</h2>
+    <div id="waitlistMatchText" style="font-size:0.88rem;margin-bottom:14px;"></div>
+    <div id="waitlistMatchList" style="font-size:0.85rem;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeWaitlistMatchBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   AGENDA — vista de 3 días, pensada para entrar entera en
+   pantalla sin scroll vertical. Los eventos se guardan en
+   localStorage del navegador.
+
+   Cada evento: id, type ('recurrente'|'aislada'|'personal'),
+   title, startTime, endTime, location, notes, y según el tipo:
+     - recurrente: day (0=lunes..6=domingo), startDate, untilDate
+     - aislada / personal: date
+
+   Hasta 4 eventos pueden coincidir en el mismo horario: se
+   muestran apilados uno arriba del otro (no en columnas).
+   ============================================================ */
+
+const DAY_START_HOUR = 10;
+const DAY_END_HOUR   = 19;
+const DAYS_VISIBLE = 3;
+const MAX_OVERLAP = 4;
+const DEFAULT_DURATION_MIN = 60; // duración por defecto al elegir hora de inicio
+const DOW_SHORT = ['dom','lun','mar','mié','jue','vie','sáb'];
+const DAY_NAMES_FULL = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
+
+let events = loadEvents();
+let currentStart = startOfDay(new Date());
+let editingId = null;
+let detailId = null;
+let detailDate = null;
+let currentType = 'recurrente';
+
+/* ---------------- Persistencia ---------------- */
+function loadEvents(){
+  try{
+    const raw = localStorage.getItem('agenda_eventos');
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveEvents(){
+  localStorage.setItem('agenda_eventos', JSON.stringify(events));
+}
+
+/* ---------------- Registro de asistencia / pago por clase puntual ----------------
+   Se guarda aparte de los eventos, con clave "idDelEvento::fecha".
+   Si no hay registro para una fecha, se asume que vino y que no pagó
+   (así el checkbox "Pagó" queda destacado hasta que lo marques). */
+function loadRegistro(){
+  try{
+    const raw = localStorage.getItem('agenda_registro');
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveRegistro(){
+  localStorage.setItem('agenda_registro', JSON.stringify(registro));
+}
+function registroKey(id, dateISO){ return id + '::' + dateISO; }
+function getRegistro(id, dateISO){
+  return registro[registroKey(id, dateISO)] || { attended:true, paid:true };
+}
+function setRegistro(id, dateISO, data){
+  registro[registroKey(id, dateISO)] = data;
+  saveRegistro();
+}
+function deleteRegistro(id, dateISO){
+  delete registro[registroKey(id, dateISO)];
+  saveRegistro();
+}
+let registro = loadRegistro();
+
+/* ---------------- Utilidades de fecha ---------------- */
+function startOfDay(d){
+  const date = new Date(d);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function addDays(date, n){
+  const d = new Date(date);
+  d.setDate(d.getDate()+n);
+  return d;
+}
+function sameDate(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+function toISODate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function fmtRangeLabel(start){
+  const end = addDays(start, DAYS_VISIBLE-1);
+  const opts = {day:'numeric', month:'short'};
+  return `${start.toLocaleDateString('es-UY', opts)} – ${end.toLocaleDateString('es-UY', opts)}`;
+}
+function minutesOf(timeStr){
+  const [h,m] = timeStr.split(':').map(Number);
+  return h*60+m;
+}
+function minutesToTime(mins){
+  mins = ((mins % 1440)+1440)%1440;
+  const h = Math.floor(mins/60), m = mins%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+function mondayIndex(date){
+  return (date.getDay()+6)%7;
+}
+
+/* ---------------- Eventos que caen en una fecha concreta ---------------- */
+function eventsForDate(date){
+  const dow = mondayIndex(date);
+  const iso = toISODate(date);
+  return events.filter(evt=>{
+    if(evt.type === 'recurrente'){
+      if(evt.day !== dow) return false;
+      const start = new Date(evt.startDate+'T00:00:00');
+      if(date < start) return false;
+      if(evt.untilDate){
+        const until = new Date(evt.untilDate+'T23:59:59');
+        if(date > until) return false;
+      }
+      if(evt.excludedDates && evt.excludedDates.includes(iso)) return false;
+      return true;
+    } else {
+      return evt.date === iso;
+    }
+  });
+}
+
+/* ---------------- Distribución cuando se superponen (apilado) ---------------- */
+function layoutDay(dayEvents){
+  if(dayEvents.length === 0) return [];
+  const items = dayEvents.map(e=>({evt:e, start:minutesOf(e.startTime), end:minutesOf(e.endTime), col:-1}));
+  items.sort((a,b)=> a.start-b.start || a.end-b.end);
+
+  const clusters = [];
+  let current = [];
+  let clusterEnd = -Infinity;
+  items.forEach(item=>{
+    if(current.length===0 || item.start < clusterEnd){
+      current.push(item);
+      clusterEnd = Math.max(clusterEnd, item.end);
+    } else {
+      clusters.push(current);
+      current = [item];
+      clusterEnd = item.end;
+    }
+  });
+  if(current.length) clusters.push(current);
+
+  const result = [];
+  clusters.forEach(cluster=>{
+    const colEndTimes = [];
+    cluster.forEach(item=>{
+      let placed = false;
+      for(let c=0;c<colEndTimes.length;c++){
+        if(colEndTimes[c] <= item.start){
+          item.col = c;
+          colEndTimes[c] = item.end;
+          placed = true;
+          break;
+        }
+      }
+      if(!placed){
+        item.col = colEndTimes.length;
+        colEndTimes.push(item.end);
+      }
+    });
+    const colCount = Math.max(colEndTimes.length, 1);
+    cluster.forEach(item=>{
+      result.push({evt:item.evt, col:item.col, colCount});
+    });
+  });
+  return result;
+}
+
+/* ---------------- Render de la grilla ---------------- */
+function renderCalendar(){
+  document.getElementById('weekLabel').textContent = fmtRangeLabel(currentStart);
+
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+
+  const corner = document.createElement('div');
+  corner.className = 'corner';
+  cal.appendChild(corner);
+
+  const today = new Date();
+  const visibleDates = [];
+  for(let i=0;i<DAYS_VISIBLE;i++){
+    const d = addDays(currentStart, i);
+    visibleDates.push(d);
+    const head = document.createElement('div');
+    head.className = 'day-head' + (sameDate(d, today) ? ' is-today' : '');
+    head.innerHTML = `<div class="dname">${DOW_SHORT[d.getDay()]}</div><div class="dnum">${d.getDate()}</div>`;
+    cal.appendChild(head);
+  }
+
+  // fila extra arriba de la grilla de horas, para las tareas sin horario fijo
+  const taskLabel = document.createElement('div');
+  taskLabel.className = 'task-row-label';
+  cal.appendChild(taskLabel);
+
+  visibleDates.forEach(date=>{
+    const taskRow = document.createElement('div');
+    taskRow.className = 'task-row';
+    eventsForDate(date).filter(e=>e.type==='personal').forEach(evt=>{
+      const chip = document.createElement('div');
+      chip.className = 'task-chip';
+      chip.textContent = evt.title;
+      chip.addEventListener('click', ()=> openDetail(evt.id, toISODate(date)));
+      taskRow.appendChild(chip);
+    });
+    cal.appendChild(taskRow);
+  });
+
+  const timeCol = document.createElement('div');
+  timeCol.className = 'time-col';
+  for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
+    const slot = document.createElement('div');
+    slot.className = 'time-slot';
+    slot.textContent = String(h).padStart(2,'0')+':00';
+    timeCol.appendChild(slot);
+  }
+  cal.appendChild(timeCol);
+
+  const totalMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
+
+  visibleDates.forEach(date=>{
+    const col = document.createElement('div');
+    col.className = 'day-col';
+    for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
+      const line = document.createElement('div');
+      line.className = 'hour-line';
+      col.appendChild(line);
+    }
+    cal.appendChild(col);
+
+    // medir la altura real disponible (varía según el tamaño de pantalla)
+    const pxPerMin = col.clientHeight / totalMinutes;
+
+    const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
+    laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
+  });
+
+  if(typeof syncFrozenColumn === 'function') syncFrozenColumn();
+}
+
+function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
+  const el = document.createElement('div');
+  el.className = 'event-block type-'+evt.type + (colCount>1 ? ' stacked' : '') + (colCount>=4 ? ' quad' : '');
+  const startMin = minutesOf(evt.startTime) - DAY_START_HOUR*60;
+  const endMin = minutesOf(evt.endTime) - DAY_START_HOUR*60;
+  const durationMin = endMin - startMin;
+  const ownTop = startMin*pxPerMin;
+  const ownHeight = Math.max((endMin-startMin)*pxPerMin, 14);
+
+  if(colCount >= 4){
+    // con 4 al mismo horario: uno al lado del otro, cada uno con su alto real
+    // (así una clase de 1 hora se ve más alta que una de media hora)
+    const widthPct = 100/colCount;
+    el.style.top = ownTop + 'px';
+    el.style.height = Math.max(ownHeight - 2, 14) + 'px';
+    el.style.left = `calc(${col*widthPct}% + 2px)`;
+    el.style.width = `calc(${widthPct}% - 4px)`;
+    el.style.right = 'auto';
+  } else {
+    // 2 o 3 al mismo horario: apilados, uno arriba del otro
+    const sliceHeight = ownHeight / colCount;
+    el.style.top = (ownTop + col*sliceHeight) + 'px';
+    el.style.height = Math.max(sliceHeight - 1, 12) + 'px';
+  }
+
+  el.innerHTML = `<span class="ev-title">${escapeHtml(evt.title)}</span>`;
+  el.addEventListener('click', ()=> openDetail(evt.id, dateISO));
+  return el;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------------- Navegación ---------------- */
+document.getElementById('prevWeek').addEventListener('click', ()=>{
+  currentStart = addDays(currentStart, -DAYS_VISIBLE);
+  renderCalendar();
+});
+document.getElementById('nextWeek').addEventListener('click', ()=>{
+  currentStart = addDays(currentStart, DAYS_VISIBLE);
+  renderCalendar();
+});
+document.getElementById('todayBtn').addEventListener('click', ()=>{
+  currentStart = startOfDay(new Date());
+  renderCalendar();
+});
+
+// si la pantalla cambia de tamaño (o gira el celular), recalcular alturas
+let resizeTimer;
+window.addEventListener('resize', ()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderCalendar, 120);
+});
+
+/* ---------------- Modal: crear / editar ---------------- */
+const editOverlay = document.getElementById('editOverlay');
+const titleLabels = { recurrente:'Nombre del alumno', aislada:'Nombre del alumno', personal:'Tarea' };
+const titlePlaceholders = { recurrente:'', aislada:'', personal:'' };
+
+// Selects de hora propios: siempre en formato 24hs, sin depender del celular.
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function populateTimeSelect(sel, step){
+  for(let m=0; m<24*60; m+=step){
+    const h = Math.floor(m/60), mm = m%60;
+    const opt = document.createElement('option');
+    opt.value = pad2(h)+':'+pad2(mm);
+    opt.textContent = pad2(h)+':'+pad2(mm);
+    sel.appendChild(opt);
+  }
+}
+// un solo select por horario (hora:minuto juntos) para simplificar la validación
+function buildTimeSelect(id, step){
+  const sel = document.getElementById(id);
+  populateTimeSelect(sel, step);
+  return sel;
+}
+const startSelect = buildTimeSelect('f-start-h', 15);
+const endSelect = buildTimeSelect('f-end-h', 15);
+
+function getStartTime(){ return startSelect.value; }
+function getEndTime(){ return endSelect.value; }
+function setStartTime(v){ startSelect.value = snapToStep(v); }
+function setEndTime(v){ endSelect.value = snapToStep(v); }
+function snapToStep(hhmm){
+  const mins = Math.round(minutesOf(hhmm)/15)*15;
+  return minutesToTime(mins);
+}
+
+function openEditModal(existing){
+  editingId = existing ? existing.id : null;
+  document.getElementById('editModalTitle').textContent = 'Nuevo evento';
+
+  setType(existing ? existing.type : 'recurrente');
+
+  document.getElementById('f-title').value = existing ? existing.title : '';
+  document.getElementById('f-title-multiline').value = existing ? existing.title : '';
+  document.getElementById('f-notes').value = existing ? (existing.notes||'') : '';
+  populateReferenceTimeSelect(startSelect, existing ? existing.startTime : null);
+  const defaultStart = existing ? existing.startTime : firstReferenceTime();
+  setStartTime(defaultStart);
+  setEndTime(existing ? existing.endTime : minutesToTime(minutesOf(defaultStart) + DEFAULT_DURATION_MIN));
+
+  if(existing && existing.type === 'recurrente'){
+    document.getElementById('f-day').value = existing.day;
+    document.getElementById('f-startdate').value = existing.startDate;
+    document.getElementById('f-untildate').value = existing.untilDate || '';
+  } else {
+    document.getElementById('f-day').value = 0;
+    document.getElementById('f-startdate').value = toISODate(new Date());
+    document.getElementById('f-untildate').value = '';
+  }
+
+  if(existing && existing.type !== 'recurrente'){
+    document.getElementById('f-date').value = existing.date;
+  } else {
+    document.getElementById('f-date').value = toISODate(new Date());
+  }
+
+  editOverlay.classList.add('open');
+}
+
+function setType(t){
+  currentType = t;
+  document.querySelectorAll('#typePicker button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.t === t);
+  });
+  document.getElementById('fieldsRecurrente').classList.toggle('hidden', t !== 'recurrente');
+  document.getElementById('fieldsFecha').classList.toggle('hidden', t === 'recurrente');
+  document.getElementById('fieldsTime').classList.toggle('hidden', t === 'personal');
+  document.getElementById('f-title-label').textContent = titleLabels[t];
+  document.getElementById('f-title').placeholder = titlePlaceholders[t];
+  document.getElementById('f-title').classList.toggle('hidden', t === 'personal');
+  document.getElementById('f-title-multiline').classList.toggle('hidden', t !== 'personal');
+}
+
+document.querySelectorAll('#typePicker button').forEach(b=>{
+  b.addEventListener('click', ()=> setType(b.dataset.t));
+});
+
+// al elegir la hora de inicio, la hora de fin se completa sola (+1 hora)
+startSelect.addEventListener('change', ()=>{
+  setEndTime(minutesToTime(minutesOf(getStartTime()) + DEFAULT_DURATION_MIN));
+});
+
+document.getElementById('newEventBtn').addEventListener('click', ()=> openEditModal(null));
+document.getElementById('cancelEditBtn').addEventListener('click', ()=> editOverlay.classList.remove('open'));
+
+function timeRangesOverlap(aStart,aEnd,bStart,bEnd){
+  return aStart < bEnd && bStart < aEnd;
+}
+
+document.getElementById('saveEventBtn').addEventListener('click', ()=>{
+  const title = (currentType === 'personal'
+    ? document.getElementById('f-title-multiline').value
+    : document.getElementById('f-title').value).trim();
+  if(!title){ alert('Falta el nombre del alumno (o de la tarea).'); return; }
+
+  let startTime, endTime;
+  if(currentType === 'personal'){
+    // las tareas no ocupan horario en la grilla, se guarda un valor interno fijo
+    startTime = '00:00';
+    endTime = '00:15';
+  } else {
+    startTime = getStartTime();
+    endTime = getEndTime();
+    if(endTime <= startTime){ alert('La hora de fin tiene que ser después de la hora de inicio.'); return; }
+    if(minutesOf(startTime) < DAY_START_HOUR*60 || minutesOf(endTime) > DAY_END_HOUR*60){
+      alert(`El horario tiene que estar entre las ${pad2(DAY_START_HOUR)}:00 y las ${pad2(DAY_END_HOUR)}:00, que es el rango que se ve en la agenda.`);
+      return;
+    }
+  }
+
+  const base = {
+    id: editingId || ('ev_' + Date.now() + '_' + Math.random().toString(36).slice(2,7)),
+    type: currentType,
+    title,
+    startTime,
+    endTime,
+    location: '',
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+
+  let repDate;
+  if(currentType === 'recurrente'){
+    base.day = Number(document.getElementById('f-day').value);
+    base.startDate = document.getElementById('f-startdate').value;
+    base.untilDate = document.getElementById('f-untildate').value || null;
+    base.excludedDates = (editingId && events.find(e=>e.id===editingId) || {}).excludedDates || [];
+    repDate = new Date(base.startDate + 'T00:00:00');
+  } else {
+    base.date = document.getElementById('f-date').value;
+    repDate = new Date(base.date + 'T00:00:00');
+  }
+
+  if(currentType !== 'personal'){
+    const sameDay = eventsForDate(repDate).filter(e => e.id !== editingId && e.type !== 'personal');
+    const newStart = minutesOf(startTime), newEnd = minutesOf(endTime);
+    const overlapping = sameDay.filter(e => timeRangesOverlap(newStart,newEnd, minutesOf(e.startTime), minutesOf(e.endTime)));
+    if(overlapping.length >= MAX_OVERLAP){
+      alert('Ya hay 4 eventos en ese horario. Elegí otro horario para ese día.');
+      return;
+    }
+  }
+
+  if(editingId){
+    events = events.map(e => e.id === editingId ? base : e);
+  } else {
+    events.push(base);
+  }
+  saveEvents();
+  editOverlay.classList.remove('open');
+  renderCalendar();
+});
+
+/* ---------------- Modal: detalle ---------------- */
+const detailOverlay = document.getElementById('detailOverlay');
+const typeLabels = { recurrente:'Agenda', aislada:'Extra', personal:'Tareas' };
+const typeColors = { recurrente:'var(--recurrente-bg)', aislada:'var(--aislada-bg)', personal:'var(--personal-bg)' };
+const typeText   = { recurrente:'#1f3d38', aislada:'#5c3617', personal:'#3a3059' };
+
+function openDetail(id, dateISO){
+  const evt = events.find(e=>e.id===id);
+  if(!evt) return;
+  detailId = id;
+  detailDate = dateISO;
+
+  const typeEl = document.getElementById('d-type');
+  typeEl.textContent = typeLabels[evt.type];
+  typeEl.style.background = typeColors[evt.type];
+  typeEl.style.color = typeText[evt.type];
+
+  document.getElementById('d-title').textContent = evt.title;
+  document.getElementById('d-time').textContent = `${evt.startTime} a ${evt.endTime}`;
+
+  const dayEl = document.getElementById('d-day');
+  if(evt.type === 'recurrente'){
+    let txt = `Todos los ${DAY_NAMES_FULL[evt.day]}, desde el ${formatDMY(evt.startDate)}`;
+    if(evt.untilDate) txt += ` hasta el ${formatDMY(evt.untilDate)}`;
+    dayEl.textContent = txt;
+  } else {
+    dayEl.textContent = formatDMY(evt.date);
+  }
+
+  document.getElementById('d-loc').textContent = evt.location ? '📍 '+evt.location : '';
+  document.getElementById('d-notes').textContent = evt.notes || '';
+
+  const shareBtn = document.getElementById('shareBtn');
+  const deberesBtn = document.getElementById('deberesBtn');
+  const shareHint = document.getElementById('shareHint');
+  const isClass = evt.type === 'recurrente' || evt.type === 'aislada';
+
+  shareBtn.classList.toggle('hidden', !isClass);
+  deberesBtn.classList.toggle('hidden', !isClass);
+  shareHint.classList.toggle('hidden', !isClass);
+
+  // registro de asistencia / pago de este día puntual
+  const attSection = document.getElementById('attendanceSection');
+  attSection.classList.toggle('hidden', !isClass);
+  if(isClass){
+    const reg = getRegistro(id, dateISO);
+    document.getElementById('d-paid').checked = reg.paid;
+    setRegistro(id, dateISO, reg); // queda guardado aunque no toques el checkbox
+  }
+
+  // se resetea cualquier confirmación de borrado que haya quedado abierta
+  document.getElementById('deleteConfirmBox').classList.add('hidden');
+
+  // opciones de borrado y cambio de día: solo para clases recurrentes
+  document.getElementById('deleteScopeField').classList.toggle('hidden', evt.type !== 'recurrente');
+  document.getElementById('rescheduleField').classList.toggle('hidden', evt.type !== 'recurrente');
+  if(evt.type === 'recurrente') document.getElementById('d-delete-scope').value = 'one';
+
+  detailOverlay.classList.add('open');
+}
+
+// guardar el registro apenas se toca el checkbox
+document.getElementById('d-paid').addEventListener('change', (e)=>{
+  if(!detailId || !detailDate) return;
+  const reg = getRegistro(detailId, detailDate);
+  setRegistro(detailId, detailDate, { ...reg, paid: e.target.checked });
+});
+
+function formatDMY(iso){
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+document.getElementById('closeDetailBtn').addEventListener('click', ()=>{
+  detailOverlay.classList.remove('open');
+  document.getElementById('deleteConfirmBox').classList.add('hidden');
+});
+
+document.getElementById('rescheduleBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt || evt.type !== 'recurrente') return;
+
+  // sacar la clase normal de ese día puntual (la rutina sigue las demás semanas)
+  evt.excludedDates = evt.excludedDates || [];
+  if(!evt.excludedDates.includes(detailDate)) evt.excludedDates.push(detailDate);
+  const reg = getRegistro(detailId, detailDate);
+  setRegistro(detailId, detailDate, { ...reg, attended:true });
+  saveEvents();
+
+  // armar un evento Extra pre-cargado con el mismo día y horario, para que
+  // ella cambie lo que corresponda (el horario, el día, o ambos) y lo guarde
+  const title = evt.title, notes = evt.notes, startTime = evt.startTime, endTime = evt.endTime;
+  detailOverlay.classList.remove('open');
+  renderCalendar();
+
+  openEditModal(null);
+  setType('aislada');
+  document.getElementById('f-title').value = title;
+  document.getElementById('f-notes').value = notes || '';
+  document.getElementById('f-date').value = detailDate;
+  setStartTime(startTime);
+  setEndTime(endTime);
+});
+
+document.getElementById('deleteEventBtn').addEventListener('click', ()=>{
+  if(!detailId) return;
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+
+  let msg;
+  if(evt.type !== 'recurrente'){
+    msg = '¿Eliminar este evento? No se puede deshacer.';
+  } else {
+    const scope = document.getElementById('d-delete-scope').value;
+    msg = scope === 'one'
+      ? '¿Eliminar solo este día? Los demás siguen igual.'
+      : scope === 'future'
+      ? '¿Eliminar este día y los que siguen? No se puede deshacer.'
+      : '¿Eliminar toda la serie, desde el principio? No se puede deshacer.';
+  }
+  document.getElementById('deleteConfirmText').textContent = msg;
+  document.getElementById('deleteConfirmBox').classList.remove('hidden');
+});
+
+document.getElementById('cancelDeleteBtn').addEventListener('click', ()=>{
+  document.getElementById('deleteConfirmBox').classList.add('hidden');
+});
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+
+  const isClassType = evt.type === 'recurrente' || evt.type === 'aislada';
+  const freedDate = evt.type === 'recurrente' ? detailDate : evt.date;
+  const freedTime = evt.startTime;
+
+  if(evt.type !== 'recurrente'){
+    events = events.filter(e=>e.id!==detailId);
+  } else {
+    const scope = document.getElementById('d-delete-scope').value;
+    if(scope === 'one'){
+      evt.excludedDates = evt.excludedDates || [];
+      if(!evt.excludedDates.includes(detailDate)) evt.excludedDates.push(detailDate);
+      const reg = getRegistro(detailId, detailDate);
+      setRegistro(detailId, detailDate, { ...reg, attended:true });
+    } else if(scope === 'future'){
+      const prevDay = addDays(new Date(detailDate+'T00:00:00'), -1);
+      evt.untilDate = toISODate(prevDay);
+    } else {
+      events = events.filter(e=>e.id!==detailId);
+    }
+  }
+
+  saveEvents();
+  document.getElementById('deleteConfirmBox').classList.add('hidden');
+  detailOverlay.classList.remove('open');
+  renderCalendar();
+
+  if(isClassType) checkWaitlistMatch(freedDate, freedTime);
+});
+
+document.getElementById('editFromDetailBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  detailOverlay.classList.remove('open');
+  if(evt) openEditModal(evt);
+});
+
+/* ---------------- Compartir por WhatsApp ---------------- */
+
+// El mensaje se adapta solo: dice "de hoy", "de mañana" o la fecha,
+// según qué tan lejos esté el día de la clase respecto a hoy.
+function dayPhrase(dateISO){
+  const target = new Date(dateISO + 'T00:00:00');
+  const diffDays = Math.round((target - startOfDay(new Date())) / 86400000);
+  if(diffDays === 0) return 'de hoy';
+  if(diffDays === 1) return 'de mañana';
+  return `del ${formatDMY(dateISO)}`;
+}
+
+// Google Calendar arma el evento solo con un link, sin apps ni permisos.
+function buildGoogleCalendarLink(evt, dateISO){
+  const [sh,sm] = evt.startTime.split(':').map(Number);
+  const [eh,em] = evt.endTime.split(':').map(Number);
+  const refDate = new Date(dateISO + 'T00:00:00');
+  const dtStart = new Date(refDate); dtStart.setHours(sh,sm,0,0);
+  const dtEnd = new Date(refDate); dtEnd.setHours(eh,em,0,0);
+
+  const toGCal = (d) => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: evt.title,
+    dates: toGCal(dtStart) + '/' + toGCal(dtEnd),
+  });
+  if(evt.notes) params.set('details', evt.notes);
+  return 'https://calendar.google.com/calendar/render?' + params.toString();
+}
+
+function buildWhatsAppMessage(evt, dateISO){
+  const calLink = buildGoogleCalendarLink(evt, dateISO);
+  return `¡Hola! Te recuerdo la clase ${dayPhrase(dateISO)}.\n📅 ${formatDMY(dateISO)}\n🕐 ${evt.startTime} a ${evt.endTime}\nPor favor, confirmá tu asistencia.\n¡Saludos!\n\nGuardala en tu agenda: ${calLink}`;
+}
+
+document.getElementById('shareBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+  const url = 'https://wa.me/?text=' + encodeURIComponent(buildWhatsAppMessage(evt, detailDate));
+  window.open(url, '_blank');
+});
+
+function buildDeberesMessage(){
+  return 'A continuación, te envío los deberes para realizar en casa con lo trabajado en clase.\n\nEs importante que los hagas lo antes posible y me mandes fotos cuando los termines.';
+}
+
+document.getElementById('deberesBtn').addEventListener('click', ()=>{
+  const url = 'https://wa.me/?text=' + encodeURIComponent(buildDeberesMessage());
+  window.open(url, '_blank');
+});
+
+/* ---------------- Alumnos que deben ---------------- */
+const debtorsOverlay = document.getElementById('debtorsOverlay');
+
+document.getElementById('debtorsBtn').addEventListener('click', ()=>{
+  renderDebtors();
+  debtorsOverlay.classList.add('open');
+});
+document.getElementById('closeDebtorsBtn').addEventListener('click', ()=> debtorsOverlay.classList.remove('open'));
+
+function renderDebtors(){
+  const list = document.getElementById('debtorsList');
+  const entries = Object.keys(registro)
+    .map(key=>{
+      const idx = key.lastIndexOf('::');
+      return { id: key.slice(0,idx), date: key.slice(idx+2), ...registro[key] };
+    })
+    .filter(r => r.paid === false)
+    .map(r => ({ ...r, evt: events.find(e=>e.id===r.id) }))
+    .filter(r => r.evt)
+    .sort((a,b)=> a.date.localeCompare(b.date));
+
+  if(entries.length === 0){
+    list.innerHTML = '<p style="color:var(--ink-soft);">Nadie debe, por ahora 🎉</p>';
+    return;
+  }
+
+  list.innerHTML = '';
+  entries.forEach(r=>{
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);';
+    row.innerHTML = `
+      <div>
+        <div style="font-weight:700;">${escapeHtml(r.evt.title)}</div>
+        <div style="color:var(--ink-soft);font-size:0.78rem;">${typeLabels[r.evt.type]} · ${formatDMY(r.date)}</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+        <input type="checkbox" data-key="${r.id}::${r.date}" style="width:auto;"> Pagó
+      </label>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', (e)=>{
+      const idx = e.target.dataset.key.lastIndexOf('::');
+      const id = e.target.dataset.key.slice(0,idx);
+      const date = e.target.dataset.key.slice(idx+2);
+      const reg = getRegistro(id, date);
+      setRegistro(id, date, { ...reg, paid: true });
+      renderDebtors();
+    });
+  });
+}
+
+/* ---------------- Horarios de referencia y disponibilidad ---------------- */
+const CUPO_REFERENCIA = 4;
+const DEFAULT_HORARIOS = ['10:30','14:00','15:00','16:00','17:00'];
+
+function loadReferencia(){
+  try{
+    const raw = localStorage.getItem('agenda_referencia');
+    return raw ? JSON.parse(raw) : { horarios: DEFAULT_HORARIOS.slice() };
+  }catch(e){ return { horarios: DEFAULT_HORARIOS.slice() }; }
+}
+function saveReferencia(){ localStorage.setItem('agenda_referencia', JSON.stringify(referencia)); }
+let referencia = loadReferencia();
+
+// Llena un <select> de hora con los horarios de referencia actuales (los de
+// Cupos). Si se pasa extraTime (por ej. el horario guardado de un evento
+// viejo que ya no está en la lista), se agrega también para no perderlo.
+function populateReferenceTimeSelect(selectEl, extraTime){
+  const times = new Set(referencia.horarios);
+  if(extraTime) times.add(extraTime);
+  const sorted = Array.from(times).sort();
+  selectEl.innerHTML = '';
+  sorted.forEach(h=>{
+    const opt = document.createElement('option');
+    opt.value = h;
+    opt.textContent = h;
+    selectEl.appendChild(opt);
+  });
+}
+function firstReferenceTime(){
+  const sorted = referencia.horarios.slice().sort();
+  return sorted.length ? sorted[0] : minutesToTime(DAY_START_HOUR*60);
+}
+
+function getVisibleDates(){
+  const arr = [];
+  for(let i=0;i<DAYS_VISIBLE;i++) arr.push(addDays(currentStart, i));
+  return arr;
+}
+
+const availabilityOverlay = document.getElementById('availabilityOverlay');
+const newHorarioSelect = buildTimeSelect('newHorarioSelect', 15);
+
+document.getElementById('availabilityBtn').addEventListener('click', ()=>{
+  renderReferenciaChips();
+  renderAvailability();
+  availabilityOverlay.classList.add('open');
+});
+document.getElementById('closeAvailabilityBtn').addEventListener('click', ()=> availabilityOverlay.classList.remove('open'));
+
+function renderReferenciaChips(){
+  const wrap = document.getElementById('refHorariosList');
+  wrap.innerHTML = '';
+  if(referencia.horarios.length === 0){
+    wrap.innerHTML = '<span style="color:var(--ink-soft);font-size:0.82rem;">Todavía no cargaste horarios.</span>';
+  }
+  referencia.horarios.slice().sort().forEach(h=>{
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:var(--line);border-radius:20px;padding:4px 6px 4px 10px;font-family:var(--font-num);font-size:0.82rem;';
+    chip.innerHTML = `${h} <button data-h="${h}" style="border:none;background:none;cursor:pointer;font-weight:700;color:var(--ink-soft);font-size:1rem;line-height:1;padding:2px 4px;">×</button>`;
+    wrap.appendChild(chip);
+  });
+  wrap.querySelectorAll('button[data-h]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      referencia.horarios = referencia.horarios.filter(h=>h!==btn.dataset.h);
+      saveReferencia();
+      renderReferenciaChips();
+      renderAvailability();
+    });
+  });
+}
+
+document.getElementById('addHorarioBtn').addEventListener('click', ()=>{
+  const h = newHorarioSelect.value;
+  if(!referencia.horarios.includes(h)){
+    referencia.horarios.push(h);
+    saveReferencia();
+    renderReferenciaChips();
+    renderAvailability();
+  }
+});
+
+function renderAvailability(){
+  const list = document.getElementById('availabilityList');
+  list.innerHTML = '';
+  const dates = getVisibleDates().filter(d => d.getDay() !== 0 && d.getDay() !== 6); // sin fines de semana
+  const sortedHorarios = referencia.horarios.slice().sort();
+
+  if(dates.length === 0){
+    list.innerHTML = '<p style="color:var(--ink-soft);">Los días visibles caen en fin de semana.</p>';
+    return;
+  }
+  if(sortedHorarios.length === 0){
+    list.innerHTML = '<p style="color:var(--ink-soft);">Cargá al menos un horario de referencia arriba.</p>';
+    return;
+  }
+
+  dates.forEach(date=>{
+    const dayBlock = document.createElement('div');
+    dayBlock.style.marginBottom = '14px';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;margin-bottom:6px;text-transform:capitalize;';
+    title.textContent = `${DAY_NAMES_FULL[mondayIndex(date)]} ${date.getDate()}`;
+    dayBlock.appendChild(title);
+
+    sortedHorarios.forEach(h=>{
+      const count = eventsForDate(date).filter(e => e.type !== 'personal' && e.startTime === h).length;
+      const free = CUPO_REFERENCIA - count;
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);';
+      const status = free > 0 ? `${free} libre${free===1?'':'s'}` : 'completo';
+      const color = free > 0 ? 'var(--recurrente)' : 'var(--aislada)';
+      const waiting = waitlistMatches(toISODate(date), h).length;
+      const waitTxt = waiting > 0 ? ` <span style="color:var(--personal);">· 🙋 ${waiting}</span>` : '';
+      row.innerHTML = `<span style="font-family:var(--font-num);">${h}</span><span style="color:${color};font-weight:600;">${count}/${CUPO_REFERENCIA} · ${status}${waitTxt}</span>`;
+      dayBlock.appendChild(row);
+    });
+
+    list.appendChild(dayBlock);
+  });
+}
+
+/* ---------------- Lista de espera ---------------- */
+function loadWaitlist(){
+  try{
+    const raw = localStorage.getItem('agenda_espera');
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveWaitlist(){ localStorage.setItem('agenda_espera', JSON.stringify(waitlist)); }
+let waitlist = loadWaitlist();
+
+function waitlistMatches(dateISO, startTime){
+  return waitlist
+    .filter(w => w.date === dateISO && w.startTime === startTime)
+    .sort((a,b) => a.createdAt - b.createdAt);
+}
+
+const waitlistOverlay = document.getElementById('waitlistOverlay');
+const waitlistMatchOverlay = document.getElementById('waitlistMatchOverlay');
+const wStartSelect = buildTimeSelect('w-start-h', 15);
+const wEndSelect = buildTimeSelect('w-end-h', 15);
+
+wStartSelect.addEventListener('change', ()=>{
+  const mins = minutesOf(wStartSelect.value) + DEFAULT_DURATION_MIN;
+  wEndSelect.value = minutesToTime(mins);
+});
+
+document.getElementById('waitlistBtn').addEventListener('click', ()=>{
+  document.getElementById('w-title').value = '';
+  document.getElementById('w-date').value = toISODate(new Date());
+  populateReferenceTimeSelect(wStartSelect, null);
+  const defaultStart = firstReferenceTime();
+  wStartSelect.value = defaultStart;
+  wEndSelect.value = minutesToTime(minutesOf(defaultStart) + DEFAULT_DURATION_MIN);
+  renderWaitlistList();
+  waitlistOverlay.classList.add('open');
+});
+document.getElementById('closeWaitlistBtn').addEventListener('click', ()=> waitlistOverlay.classList.remove('open'));
+document.getElementById('closeWaitlistMatchBtn').addEventListener('click', ()=> waitlistMatchOverlay.classList.remove('open'));
+
+document.getElementById('addWaitlistBtn').addEventListener('click', ()=>{
+  const title = document.getElementById('w-title').value.trim();
+  const date = document.getElementById('w-date').value;
+  const startTime = wStartSelect.value;
+  const endTime = wEndSelect.value;
+  if(!title){ alert('Falta el nombre.'); return; }
+  if(!date){ alert('Falta la fecha.'); return; }
+  if(endTime <= startTime){ alert('La hora de fin tiene que ser después de la hora de inicio.'); return; }
+
+  waitlist.push({
+    id: 'wl_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    title, date, startTime, endTime,
+    createdAt: Date.now(),
+  });
+  saveWaitlist();
+  document.getElementById('w-title').value = '';
+  renderWaitlistList();
+});
+
+// arma las filas de una tanda de personas en espera (se usa en los dos modales)
+function buildWaitlistRow(entry, { recommend }){
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);';
+  row.innerHTML = `
+    <div>
+      <div style="font-weight:700;">${escapeHtml(entry.title)}${recommend ? ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.78rem;">(recomendado)</span>' : ''}</div>
+      <div style="color:var(--ink-soft);font-size:0.78rem;">${formatDMY(entry.date)} · ${entry.startTime} a ${entry.endTime}</div>
+    </div>
+    <div style="display:flex;gap:6px;flex-shrink:0;">
+      <button data-convert="${entry.id}" style="border:1px solid var(--line-strong);border-radius:8px;background:#fff;padding:6px 8px;font-size:0.76rem;cursor:pointer;">Convertir a Extra</button>
+      <button data-remove="${entry.id}" style="border:none;background:none;color:var(--ink-soft);font-weight:700;cursor:pointer;padding:6px;">×</button>
+    </div>
+  `;
+  return row;
+}
+
+function wireWaitlistRowButtons(container, afterChange){
+  container.querySelectorAll('button[data-convert]').forEach(btn=>{
+    btn.addEventListener('click', ()=> convertWaitlistToExtra(btn.dataset.convert));
+  });
+  container.querySelectorAll('button[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      waitlist = waitlist.filter(w=>w.id!==btn.dataset.remove);
+      saveWaitlist();
+      afterChange();
+    });
+  });
+}
+
+function renderWaitlistList(){
+  const list = document.getElementById('waitlistList');
+  list.innerHTML = '';
+  if(waitlist.length === 0){
+    list.innerHTML = '<p style="color:var(--ink-soft);">No hay nadie en la lista por ahora.</p>';
+    return;
+  }
+  const sorted = waitlist.slice().sort((a,b)=> a.date===b.date ? a.createdAt-b.createdAt : a.date.localeCompare(b.date));
+  sorted.forEach(entry=>{
+    const firstForSlot = waitlistMatches(entry.date, entry.startTime)[0];
+    list.appendChild(buildWaitlistRow(entry, { recommend: firstForSlot && firstForSlot.id === entry.id }));
+  });
+  wireWaitlistRowButtons(list, renderWaitlistList);
+}
+
+function checkWaitlistMatch(dateISO, startTime){
+  const matches = waitlistMatches(dateISO, startTime);
+  if(matches.length === 0) return;
+
+  document.getElementById('waitlistMatchText').textContent =
+    `Se liberó ${formatDMY(dateISO)} a las ${startTime}. Te recomendamos avisarle primero a ${matches[0].title}, pero podés avisarle a cualquiera de la lista.`;
+
+  const container = document.getElementById('waitlistMatchList');
+  container.innerHTML = '';
+  matches.forEach((entry, i)=> container.appendChild(buildWaitlistRow(entry, { recommend: i===0 })));
+  wireWaitlistRowButtons(container, ()=> checkWaitlistMatch(dateISO, startTime));
+
+  waitlistMatchOverlay.classList.add('open');
+}
+
+function convertWaitlistToExtra(id){
+  const entry = waitlist.find(w=>w.id===id);
+  if(!entry) return;
+
+  waitlist = waitlist.filter(w=>w.id!==id);
+  saveWaitlist();
+  waitlistOverlay.classList.remove('open');
+  waitlistMatchOverlay.classList.remove('open');
+
+  openEditModal(null);
+  setType('aislada');
+  document.getElementById('f-title').value = entry.title;
+  document.getElementById('f-date').value = entry.date;
+  populateReferenceTimeSelect(startSelect, entry.startTime);
+  setStartTime(entry.startTime);
+  setEndTime(entry.endTime);
+}
+
+/* ---------------- Exportar / Importar (respaldo completo) ----------------
+   Junta todo lo guardado en este celular (eventos, registro de pago,
+   horarios de referencia y lista de espera) en un único archivo .json
+   que se puede guardar y después volver a cargar, en este celular o en otro. */
+function exportAllData(){
+  const payload = {
+    exportadoEl: new Date().toISOString(),
+    agenda_eventos: localStorage.getItem('agenda_eventos') || '[]',
+    agenda_registro: localStorage.getItem('agenda_registro') || '{}',
+    agenda_referencia: localStorage.getItem('agenda_referencia') || '',
+    agenda_espera: localStorage.getItem('agenda_espera') || '[]',
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `agenda-respaldo-${toISODate(new Date())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+document.getElementById('exportBtn').addEventListener('click', exportAllData);
+
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('importFileInput').click();
+});
+
+document.getElementById('importFileInput').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      if(data.agenda_eventos) localStorage.setItem('agenda_eventos', data.agenda_eventos);
+      if(data.agenda_registro) localStorage.setItem('agenda_registro', data.agenda_registro);
+      if(data.agenda_referencia) localStorage.setItem('agenda_referencia', data.agenda_referencia);
+      if(data.agenda_espera) localStorage.setItem('agenda_espera', data.agenda_espera);
+
+      events = loadEvents();
+      registro = loadRegistro();
+      referencia = loadReferencia();
+      waitlist = loadWaitlist();
+
+      renderCalendar();
+      alert('Listo, se importó el respaldo.');
+    }catch(err){
+      alert('No se pudo leer ese archivo. Tiene que ser un respaldo exportado desde acá.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* ---------------- Cerrar modales tocando el fondo ---------------- */
+[editOverlay, detailOverlay, debtorsOverlay, availabilityOverlay, waitlistOverlay, waitlistMatchOverlay].forEach(ov=>{
+  ov.addEventListener('click', (e)=>{
+    if(e.target === ov) ov.classList.remove('open');
+  });
+});
+
+/* ---------------- Columna de horas fija (movida a mano con JS) ----------------
+   El position:sticky de CSS no es confiable acá porque la grilla vive dentro
+   de un contenedor flexible. En cambio, cada vez que se hace scroll horizontal,
+   se desplaza la columna de horas exactamente lo mismo, así queda pegada. */
+const calendarWrapEl = document.querySelector('.calendar-wrap');
+function syncFrozenColumn(){
+  const x = calendarWrapEl.scrollLeft;
+  document.querySelectorAll('.corner, .time-col, .task-row-label').forEach(el=>{
+    el.style.transform = `translateX(${x}px)`;
+  });
+}
+calendarWrapEl.addEventListener('scroll', syncFrozenColumn);
+
+/* ---------------- Inicio ---------------- */
+renderCalendar();
+syncFrozenColumn();
+</script>
+</body>
+</html>
