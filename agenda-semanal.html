@@ -17,6 +17,8 @@
     --recurrente-bg: #e3ede9;
     --aislada: #b5652d;
     --aislada-bg: #f3e5d8;
+    --extra: #2f6fb0;
+    --extra-bg: #e1ecf7;
     --personal: #6b5b95;
     --personal-bg: #e9e5f2;
 
@@ -220,8 +222,9 @@
     font-size:0.62rem;
     color:var(--ink-soft);
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:flex-end;
+    padding-top:2px;
   }
 
   .day-col{
@@ -273,7 +276,7 @@
     overflow:hidden;
   }
   .type-recurrente{ background:var(--recurrente-bg); border-left-color:var(--recurrente); color:#1f3d38; }
-  .type-aislada{ background:var(--aislada-bg); border-left-color:var(--aislada); color:#5c3617; }
+  .type-aislada{ background:var(--extra-bg); border-left-color:var(--extra); color:#1c3f66; }
   .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#3a3059; }
 
   .overlay{
@@ -345,7 +348,7 @@
     color:var(--ink-soft);
   }
   .type-picker button.active[data-t="recurrente"]{ border-color:var(--recurrente); color:var(--recurrente); background:var(--recurrente-bg); }
-  .type-picker button.active[data-t="aislada"]{ border-color:var(--aislada); color:var(--aislada); background:var(--aislada-bg); }
+  .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:var(--extra); background:var(--extra-bg); }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:var(--personal); background:var(--personal-bg); }
 
   .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
@@ -1078,8 +1081,8 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 /* ---------------- Modal: detalle ---------------- */
 const detailOverlay = document.getElementById('detailOverlay');
 const typeLabels = { recurrente:'Agenda', aislada:'Extra', personal:'Tareas' };
-const typeColors = { recurrente:'var(--recurrente-bg)', aislada:'var(--aislada-bg)', personal:'var(--personal-bg)' };
-const typeText   = { recurrente:'#1f3d38', aislada:'#5c3617', personal:'#3a3059' };
+const typeColors = { recurrente:'var(--recurrente-bg)', aislada:'var(--extra-bg)', personal:'var(--personal-bg)' };
+const typeText   = { recurrente:'#1f3d38', aislada:'#1c3f66', personal:'#3a3059' };
 
 function openDetail(id, dateISO){
   const evt = events.find(e=>e.id===id);
