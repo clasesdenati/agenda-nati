@@ -241,6 +241,24 @@
   }
   .hour-line:first-child{ border-top:none; }
 
+  .now-line{
+    position:absolute;
+    left:0; right:0;
+    height:2px;
+    margin-top:-1px;
+    background:#d93025;
+    z-index:5;
+    pointer-events:none;
+  }
+  .now-line::before{
+    content:'';
+    position:absolute;
+    left:-4px; top:-3px;
+    width:8px; height:8px;
+    border-radius:50%;
+    background:#d93025;
+  }
+
   .event-block{
     position:absolute;
     left:2px; right:2px;
@@ -866,10 +884,33 @@ function renderCalendar(){
 
     const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
     laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
+
+    if(sameDate(date, today)){
+      col.dataset.today = '1';
+      col.dataset.ppm = pxPerMin;
+    }
   });
+
+  updateNowLine();
 
   if(typeof syncFrozenColumn === 'function') syncFrozenColumn();
 }
+
+/* Línea de la hora actual (solo en la columna de hoy) */
+function updateNowLine(){
+  document.querySelectorAll('.now-line').forEach(n=>n.remove());
+  const col = document.querySelector('.day-col[data-today="1"]');
+  if(!col) return;
+  const now = new Date();
+  const min = now.getHours()*60 + now.getMinutes() - DAY_START_HOUR*60;
+  const total = (DAY_END_HOUR - DAY_START_HOUR)*60;
+  if(min < 0 || min > total) return;
+  const line = document.createElement('div');
+  line.className = 'now-line';
+  line.style.top = (min * parseFloat(col.dataset.ppm)) + 'px';
+  col.appendChild(line);
+}
+setInterval(updateNowLine, 60000);
 
 function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
   const el = document.createElement('div');
