@@ -241,6 +241,23 @@
   }
   .hour-line:first-child{ border-top:none; }
 
+  .class-cut{
+    position:absolute; left:0; right:0; height:0;
+    border-top:2px solid #8a8473;
+    pointer-events:none;
+  }
+  .class-band{
+    position:absolute; left:0; right:0;
+    background:rgba(110,100,70,.10);
+    pointer-events:none;
+  }
+  .time-slot.dim{ opacity:.4; }
+  .time-slot.is-ref{ color:var(--ink); font-weight:700; }
+  .time-col{ position:relative; }
+  .time-slot.ref-extra{
+    position:absolute; left:0; right:0; flex:none; height:auto;
+  }
+
   .now-line{
     position:absolute;
     left:0; right:0;
@@ -865,6 +882,7 @@ function renderCalendar(){
     slot.textContent = String(h).padStart(2,'0')+':00';
     timeCol.appendChild(slot);
   }
+  decorateTimeCol(timeCol);
   cal.appendChild(timeCol);
 
   const totalMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
@@ -883,6 +901,7 @@ function renderCalendar(){
     const pxPerMin = col.clientHeight / totalMinutes;
 
     const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
+    drawClassBreaks(col);
     laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
 
     if(sameDate(date, today)){
@@ -894,6 +913,57 @@ function renderCalendar(){
   updateNowLine();
 
   if(typeof syncFrozenColumn === 'function') syncFrozenColumn();
+}
+
+/* ---- Cambio de clase visible, según los horarios de Cupos ----
+   'lineas'  = corte marcado en cada horario de Cupos + hora resaltada
+   'franjas' = cada clase de 1 hora como banda, alternando fondo         */
+const CAMBIO_CLASE_MODO = 'franjas';
+
+function refMinutes(){
+  return Array.from(new Set(referencia.horarios)).map(minutesOf).sort((a,b)=>a-b);
+}
+function pctOfDay(min){
+  const total = (DAY_END_HOUR - DAY_START_HOUR)*60;
+  return ((min - DAY_START_HOUR*60) / total) * 100;
+}
+function drawClassBreaks(col){
+  const refs = refMinutes();
+  const dayStart = DAY_START_HOUR*60, dayEnd = DAY_END_HOUR*60;
+  refs.forEach((start, i)=>{
+    if(start < dayStart || start >= dayEnd) return;
+    if(CAMBIO_CLASE_MODO === 'lineas'){
+      const cut = document.createElement('div');
+      cut.className = 'class-cut';
+      cut.style.top = pctOfDay(start) + '%';
+      col.appendChild(cut);
+    } else if(i % 2 === 0){
+      const next = refs[i+1] !== undefined ? refs[i+1] : dayEnd;
+      const end = Math.min(start + 60, next, dayEnd);
+      const band = document.createElement('div');
+      band.className = 'class-band';
+      band.style.top = pctOfDay(start) + '%';
+      band.style.height = (pctOfDay(end) - pctOfDay(start)) + '%';
+      col.appendChild(band);
+    }
+  });
+}
+function decorateTimeCol(timeCol){
+  if(CAMBIO_CLASE_MODO !== 'lineas') return;
+  const refs = refMinutes();
+  timeCol.querySelectorAll('.time-slot').forEach((slot, idx)=>{
+    const h = DAY_START_HOUR + idx;
+    if(refs.includes(h*60)) slot.classList.add('is-ref');
+    else slot.classList.add('dim');
+  });
+  refs.forEach(m=>{
+    if(m % 60 === 0 || m < DAY_START_HOUR*60 || m >= DAY_END_HOUR*60) return;
+    const lab = document.createElement('div');
+    lab.className = 'time-slot is-ref ref-extra';
+    lab.style.top = pctOfDay(m) + '%';
+    lab.textContent = String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+    timeCol.appendChild(lab);
+  });
 }
 
 /* Línea de la hora actual (solo en la columna de hoy) */
