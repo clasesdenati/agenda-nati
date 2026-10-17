@@ -610,6 +610,11 @@
     </div>
 
     <h2>Disponibilidad</h2>
+    <div class="week-nav" style="margin:8px 0 10px;justify-content:center;">
+      <button id="availPrevBtn" aria-label="Semana anterior">‹</button>
+      <span id="availWeekLabel" style="white-space:nowrap;font-size:0.8rem;color:var(--ink-soft);min-width:110px;text-align:center;"></span>
+      <button id="availNextBtn" aria-label="Semana siguiente">›</button>
+    </div>
     <div id="availabilityList" style="font-size:0.85rem;"></div>
 
     <div class="modal-actions">
@@ -1510,7 +1515,10 @@ function getVisibleDates(){
 const availabilityOverlay = document.getElementById('availabilityOverlay');
 const newHorarioSelect = buildTimeSelect('newHorarioSelect', 15);
 
+document.getElementById('availPrevBtn').addEventListener('click', ()=>{ availWeekStart = addDays(availWeekStart, -7); renderAvailability(); });
+document.getElementById('availNextBtn').addEventListener('click', ()=>{ availWeekStart = addDays(availWeekStart, 7); renderAvailability(); });
 document.getElementById('availabilityBtn').addEventListener('click', ()=>{
+  availWeekStart = mondayOfWeek(currentStart);
   renderReferenciaChips();
   renderAvailability();
   availabilityOverlay.classList.add('open');
@@ -1549,44 +1557,61 @@ document.getElementById('addHorarioBtn').addEventListener('click', ()=>{
   }
 });
 
+let availWeekStart = null;
+function mondayOfWeek(date){
+  const d = startOfDay(date);
+  // fin de semana -> mostrar la semana que viene
+  if(d.getDay()===6) return addDays(d, 2);
+  if(d.getDay()===0) return addDays(d, 1);
+  return addDays(d, -mondayIndex(d));
+}
+const AVAIL_LETTERS = ['L','M','M','J','V'];
+
 function renderAvailability(){
   const list = document.getElementById('availabilityList');
   list.innerHTML = '';
-  const dates = getVisibleDates().filter(d => d.getDay() !== 0 && d.getDay() !== 6); // sin fines de semana
-  const sortedHorarios = referencia.horarios.slice().sort();
+  if(!availWeekStart) availWeekStart = mondayOfWeek(currentStart);
+  const dates = [0,1,2,3,4].map(i=> addDays(availWeekStart, i));
+  const opts = {day:'numeric', month:'short'};
+  document.getElementById('availWeekLabel').textContent =
+    `${dates[0].toLocaleDateString('es-UY', opts)} – ${dates[4].toLocaleDateString('es-UY', opts)}`;
 
-  if(dates.length === 0){
-    list.innerHTML = '<p style="color:var(--ink-soft);">Los días visibles caen en fin de semana.</p>';
-    return;
-  }
+  const sortedHorarios = referencia.horarios.slice().sort();
   if(sortedHorarios.length === 0){
     list.innerHTML = '<p style="color:var(--ink-soft);">Cargá al menos un horario de referencia arriba.</p>';
     return;
   }
 
-  dates.forEach(date=>{
-    const dayBlock = document.createElement('div');
-    dayBlock.style.marginBottom = '14px';
-    const title = document.createElement('div');
-    title.style.cssText = 'font-weight:700;margin-bottom:6px;text-transform:capitalize;';
-    title.textContent = `${DAY_NAMES_FULL[mondayIndex(date)]} ${date.getDate()}`;
-    dayBlock.appendChild(title);
+  const today = new Date();
+  const table = document.createElement('div');
+  table.style.cssText = 'display:grid;grid-template-columns:48px repeat(5,1fr);gap:4px;align-items:stretch;';
 
-    sortedHorarios.forEach(h=>{
-      const count = eventsForDate(date).filter(e => e.type !== 'personal' && e.startTime === h).length;
-      const free = CUPO_REFERENCIA - count;
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);';
-      const status = free > 0 ? `${free} libre${free===1?'':'s'}` : 'completo';
-      const color = free > 0 ? 'var(--recurrente)' : 'var(--aislada)';
-      const waiting = waitlistMatches(toISODate(date), h).length;
-      const waitTxt = waiting > 0 ? ` <span style="color:var(--personal);">· 🙋 ${waiting}</span>` : '';
-      row.innerHTML = `<span style="font-family:var(--font-num);">${h}</span><span style="color:${color};font-weight:600;">${count}/${CUPO_REFERENCIA} · ${status}${waitTxt}</span>`;
-      dayBlock.appendChild(row);
-    });
-
-    list.appendChild(dayBlock);
+  table.appendChild(document.createElement('div'));
+  dates.forEach((d,i)=>{
+    const h = document.createElement('div');
+    h.style.cssText = 'text-align:center;line-height:1.15;padding-bottom:2px;';
+    const isToday = sameDate(d, today);
+    h.innerHTML = `<div style="font-weight:700;${isToday?'color:var(--recurrente);':''}">${AVAIL_LETTERS[i]}</div>`+
+                  `<div style="font-size:0.68rem;color:var(--ink-soft);font-family:var(--font-num);">${d.getDate()}</div>`;
+    table.appendChild(h);
   });
+
+  sortedHorarios.forEach(hr=>{
+    const lab = document.createElement('div');
+    lab.style.cssText = 'display:flex;align-items:center;font-family:var(--font-num);font-size:0.78rem;';
+    lab.textContent = hr;
+    table.appendChild(lab);
+    dates.forEach(d=>{
+      const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr).length;
+      const free = Math.max(CUPO_REFERENCIA - count, 0);
+      const cell = document.createElement('div');
+      cell.style.cssText = 'height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-num);'+
+        (free > 0 ? 'background:#dcedde;color:#2f6b4a;' : 'background:#f8d9cd;');
+      cell.textContent = free > 0 ? String(free) : '';
+      table.appendChild(cell);
+    });
+  });
+  list.appendChild(table);
 }
 
 /* ---------------- Lista de espera ---------------- */
