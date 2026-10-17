@@ -918,7 +918,7 @@ function renderCalendar(){
 /* ---- Cambio de clase visible, según los horarios de Cupos ----
    'lineas'  = corte marcado en cada horario de Cupos + hora resaltada
    'franjas' = cada clase de 1 hora como banda, alternando fondo         */
-const CAMBIO_CLASE_MODO = 'franjas';
+const CAMBIO_CLASE_MODO = 'lineas';
 
 function refMinutes(){
   return Array.from(new Set(referencia.horarios)).map(minutesOf).sort((a,b)=>a-b);
