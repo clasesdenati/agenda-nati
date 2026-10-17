@@ -243,7 +243,8 @@
 
   .class-cut{
     position:absolute; left:0; right:0; height:0;
-    border-top:2px solid #8a8473;
+    border-top:1px solid rgba(100,92,70,.38);
+    z-index:4;
     pointer-events:none;
   }
   .class-band{
@@ -930,13 +931,19 @@ function pctOfDay(min){
 function drawClassBreaks(col){
   const refs = refMinutes();
   const dayStart = DAY_START_HOUR*60, dayEnd = DAY_END_HOUR*60;
+  const cutsDone = new Set();
   refs.forEach((start, i)=>{
     if(start < dayStart || start >= dayEnd) return;
     if(CAMBIO_CLASE_MODO === 'lineas'){
-      const cut = document.createElement('div');
-      cut.className = 'class-cut';
-      cut.style.top = pctOfDay(start) + '%';
-      col.appendChild(cut);
+      // inicio y fin (1 hora) de cada clase; si coinciden, una sola línea
+      [start, start+60].forEach(m=>{
+        if(m > dayEnd || cutsDone.has(m)) return;
+        cutsDone.add(m);
+        const cut = document.createElement('div');
+        cut.className = 'class-cut';
+        cut.style.top = pctOfDay(m) + '%';
+        col.appendChild(cut);
+      });
     } else if(i % 2 === 0){
       const next = refs[i+1] !== undefined ? refs[i+1] : dayEnd;
       const end = Math.min(start + 60, next, dayEnd);
