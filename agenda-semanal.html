@@ -399,6 +399,39 @@
   }
   .hidden{ display:none !important; }
 
+  /* deslizar con el dedo: solo se captura el movimiento horizontal */
+  .calendar-wrap{ touch-action:pan-y; }
+  @keyframes slideFromRight{ from{ transform:translateX(26px); opacity:.25; } to{ transform:none; opacity:1; } }
+  @keyframes slideFromLeft { from{ transform:translateX(-26px); opacity:.25; } to{ transform:none; opacity:1; } }
+  .calendar.slide-next .day-head, .calendar.slide-next .task-row, .calendar.slide-next .day-col{ animation:slideFromRight .18s ease-out; }
+  .calendar.slide-prev .day-head, .calendar.slide-prev .task-row, .calendar.slide-prev .day-col{ animation:slideFromLeft .18s ease-out; }
+
+  /* botón Deben (solo borde) con menú desplegable */
+  .menu-wrap{ position:relative; display:inline-block; }
+  .pop-menu{
+    position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--line-strong); border-radius:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.14); padding:4px; z-index:40; min-width:120px;
+  }
+  .pop-menu button{
+    display:block; width:100%; text-align:left; background:none; border:none;
+    padding:9px 12px; border-radius:8px; font-family:var(--font-ui); font-size:0.88rem;
+    color:var(--ink); cursor:pointer;
+  }
+  .pop-menu button:hover{ background:var(--line); }
+  .search-chips{ display:flex; gap:6px; margin:8px 0 10px; }
+  .search-chips button{
+    border:1px solid var(--line-strong); background:none; border-radius:16px;
+    padding:4px 11px; font-family:var(--font-ui); font-size:0.78rem; color:var(--ink-soft); cursor:pointer;
+  }
+  .search-chips button.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .search-result{
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+    padding:9px 4px; border-bottom:1px solid var(--line); cursor:pointer; font-size:0.88rem;
+  }
+  .search-result:hover{ background:var(--line); }
+  .search-result .sr-meta{ color:var(--ink-soft); font-size:0.76rem; text-align:right; white-space:nowrap; }
+
   #detailModal .detail-type{
     display:inline-block;
     font-size:0.72rem;
@@ -455,10 +488,16 @@
   <div style="flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
     <button class="btn-ghost" id="availabilityBtn" style="border:1.5px solid var(--recurrente);border-radius:20px;">Cupos</button>
     <button class="btn-ghost" id="waitlistBtn" style="border:1.5px solid var(--personal);border-radius:20px;">Espera</button>
-    <button class="btn-ghost" id="debtorsBtn" style="border:1.5px solid var(--aislada);border-radius:20px;">Deben</button>
+    <span class="menu-wrap">
+      <button class="btn-ghost" id="debtorsBtn" aria-label="Deben y buscar" style="border:1.5px solid var(--aislada);border-radius:20px;min-width:44px;">&nbsp;</button>
+      <div class="pop-menu hidden" id="debtorsMenu">
+        <button id="menuDebenBtn">Deben</button>
+        <button id="menuBuscarBtn">Buscar</button>
+      </div>
+    </span>
     <button class="btn-ghost" id="exportBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Exp</button>
     <button class="btn-ghost" id="importBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Imp</button>
-    <input type="file" id="importFileInput" accept=".json,application/json" class="hidden">
+    <input type="file" id="importFileInput" class="hidden">
   </div>
 </header>
 
@@ -594,6 +633,41 @@
     <div id="debtorsList" style="font-size:0.88rem;"></div>
     <div class="modal-actions">
       <button class="btn-primary" id="closeDebtorsBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: buscar ============ -->
+<div class="overlay" id="searchOverlay">
+  <div class="modal">
+    <h2>Buscar</h2>
+    <input type="text" id="searchInput" placeholder="Nombre, tarea o palabra" autocomplete="off"
+      style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:8px;font-family:var(--font-ui);font-size:0.95rem;background:#fdfcfa;">
+    <div class="search-chips" id="searchChips">
+      <button data-f="all" class="active">Todo</button>
+      <button data-f="alumnos">Alumnos</button>
+      <button data-f="tareas">Tareas</button>
+    </div>
+    <div id="searchResults" style="font-size:0.88rem;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeSearchBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: importar respaldo ============ -->
+<div class="overlay" id="importOverlay">
+  <div class="modal">
+    <h2>Importar respaldo</h2>
+    <div style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:12px;">Esto reemplaza lo que haya guardado en este celular por lo del respaldo.</div>
+    <button class="btn-primary" id="pickFileBtn" style="width:100%;margin-bottom:14px;">Elegir archivo</button>
+    <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:6px;">Si el archivo no se deja elegir, abrilo, copiá todo el texto y pegalo acá:</div>
+    <textarea id="importText" rows="4" placeholder="Pegá acá el contenido del respaldo"
+      style="width:100%;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;font-family:var(--font-num);font-size:0.75rem;background:#fdfcfa;"></textarea>
+    <button class="btn-ghost" id="importTextBtn" style="border:1px solid var(--line-strong);border-radius:8px;margin-top:8px;">Importar texto</button>
+    <div id="importStatus" style="font-size:0.85rem;margin-top:10px;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeImportBtn">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1033,6 +1107,41 @@ document.getElementById('todayBtn').addEventListener('click', ()=>{
   renderCalendar();
 });
 
+
+/* ---------------- Deslizar con el dedo para cambiar de día ---------------- */
+(function(){
+  const wrap = document.querySelector('.calendar-wrap');
+  let sx=0, sy=0, tracking=false, decided=false, horizontal=false;
+  wrap.addEventListener('touchstart', (e)=>{
+    if(e.touches.length !== 1){ tracking=false; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+    tracking = true; decided = false; horizontal = false;
+  }, {passive:true});
+  wrap.addEventListener('touchmove', (e)=>{
+    if(!tracking) return;
+    const dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+    if(!decided && (Math.abs(dx) > 10 || Math.abs(dy) > 10)){
+      decided = true;
+      horizontal = Math.abs(dx) > Math.abs(dy) * 1.2;
+    }
+  }, {passive:true});
+  wrap.addEventListener('touchend', (e)=>{
+    if(!tracking) return;
+    tracking = false;
+    if(!horizontal) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    if(Math.abs(dx) < 40) return;
+    const colW = (wrap.clientWidth - 40) / DAYS_VISIBLE;
+    const days = Math.min(DAYS_VISIBLE, Math.max(1, Math.round(Math.abs(dx) / colW)));
+    const dir = dx < 0 ? 1 : -1;            // arrastrar a la izquierda = días que vienen
+    currentStart = addDays(currentStart, dir * days);
+    renderCalendar();
+    const cal = document.getElementById('calendar');
+    cal.classList.add(dir>0 ? 'slide-next' : 'slide-prev');
+    setTimeout(()=> cal.classList.remove('slide-next','slide-prev'), 220);
+  }, {passive:true});
+})();
+
 // si la pantalla cambia de tamaño (o gira el celular), recalcular alturas
 let resizeTimer;
 window.addEventListener('resize', ()=>{
@@ -1419,12 +1528,101 @@ document.getElementById('deberesBtn').addEventListener('click', ()=>{
   window.open(url, '_blank');
 });
 
+
+/* ---------------- Buscar (alumnos, tareas, palabras de las notas) ---------------- */
+const searchOverlay = document.getElementById('searchOverlay');
+let searchFilter = 'all';
+
+function norm(t){
+  return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+}
+function openSearch(){
+  searchOverlay.classList.add('open');
+  const inp = document.getElementById('searchInput');
+  inp.value = '';
+  renderSearch();
+  setTimeout(()=> inp.focus(), 50);
+}
+document.getElementById('closeSearchBtn').addEventListener('click', ()=> searchOverlay.classList.remove('open'));
+document.getElementById('searchInput').addEventListener('input', renderSearch);
+document.getElementById('searchChips').addEventListener('click', (e)=>{
+  const b = e.target.closest('button'); if(!b) return;
+  searchFilter = b.dataset.f;
+  document.querySelectorAll('#searchChips button').forEach(x=> x.classList.toggle('active', x===b));
+  renderSearch();
+});
+
+// fecha a la que hay que saltar para ver ese evento
+function searchTargetDate(evt){
+  if(evt.type !== 'recurrente') return evt.date;
+  const t = startOfDay(new Date());
+  for(let i=0;i<120;i++){
+    const d = addDays(t, i);
+    if(eventsForDate(d).some(e=>e.id===evt.id)) return toISODate(d);
+  }
+  return evt.startDate;
+}
+
+function renderSearch(){
+  const q = norm(document.getElementById('searchInput').value.trim());
+  const box = document.getElementById('searchResults');
+  box.innerHTML = '';
+  if(!q){
+    box.innerHTML = '<p style="color:var(--ink-soft);">Escribí un nombre, una tarea o una palabra.</p>';
+    return;
+  }
+  const todayISO = toISODate(new Date());
+  let found = events.filter(e=>{
+    if(searchFilter === 'alumnos' && e.type === 'personal') return false;
+    if(searchFilter === 'tareas' && e.type !== 'personal') return false;
+    return norm(e.title).includes(q) || norm(e.notes).includes(q);
+  }).map(e=> ({ e, date: searchTargetDate(e) }));
+
+  if(found.length === 0){
+    box.innerHTML = '<p style="color:var(--ink-soft);">No encontré nada.</p>';
+    return;
+  }
+  // primero lo que viene (más cercano antes), después lo pasado
+  found.sort((a,b)=>{
+    const af = a.date >= todayISO, bf = b.date >= todayISO;
+    if(af !== bf) return af ? -1 : 1;
+    return af ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
+  });
+  found.slice(0,60).forEach(({e,date})=>{
+    const label = e.type==='recurrente' ? 'Agenda' : e.type==='aislada' ? 'Extra' : 'Tarea';
+    const d = new Date(date+'T00:00:00');
+    const meta = e.type==='recurrente'
+      ? `${label} · ${DAY_NAMES_FULL[e.day]} ${e.startTime}`
+      : `${label} · ${DOW_SHORT[d.getDay()]} ${formatDMY(date).slice(0,5)}${e.type==='personal' ? '' : ' '+e.startTime}`;
+    const row = document.createElement('div');
+    row.className = 'search-result';
+    row.innerHTML = `<span style="font-weight:600;">${escapeHtml(e.title)}</span><span class="sr-meta">${escapeHtml(meta)}</span>`;
+    row.addEventListener('click', ()=>{
+      currentStart = startOfDay(new Date(date+'T00:00:00'));
+      searchOverlay.classList.remove('open');
+      renderCalendar();
+    });
+    box.appendChild(row);
+  });
+}
+
 /* ---------------- Alumnos que deben ---------------- */
 const debtorsOverlay = document.getElementById('debtorsOverlay');
 
-document.getElementById('debtorsBtn').addEventListener('click', ()=>{
+const debtorsMenu = document.getElementById('debtorsMenu');
+document.getElementById('debtorsBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  debtorsMenu.classList.toggle('hidden');
+});
+document.addEventListener('click', ()=> debtorsMenu.classList.add('hidden'));
+document.getElementById('menuDebenBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
   renderDebtors();
   debtorsOverlay.classList.add('open');
+});
+document.getElementById('menuBuscarBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  openSearch();
 });
 document.getElementById('closeDebtorsBtn').addEventListener('click', ()=> debtorsOverlay.classList.remove('open'));
 
@@ -1774,39 +1972,73 @@ function exportAllData(){
 }
 document.getElementById('exportBtn').addEventListener('click', exportAllData);
 
+const importOverlay = document.getElementById('importOverlay');
+const importStatus = document.getElementById('importStatus');
+
 document.getElementById('importBtn').addEventListener('click', ()=>{
+  importStatus.textContent = '';
+  document.getElementById('importText').value = '';
+  importOverlay.classList.add('open');
+});
+document.getElementById('closeImportBtn').addEventListener('click', ()=> importOverlay.classList.remove('open'));
+document.getElementById('pickFileBtn').addEventListener('click', ()=>{
   document.getElementById('importFileInput').click();
 });
+
+function showImportStatus(msg, ok){
+  importStatus.style.color = ok ? 'var(--recurrente)' : 'var(--aislada)';
+  importStatus.textContent = msg;
+}
+
+// Acepta el texto del respaldo, lo valida y recién ahí reemplaza lo guardado.
+function importFromText(text){
+  let data;
+  try{
+    data = JSON.parse(String(text).replace(/^﻿/, '').trim());
+  }catch(err){
+    showImportStatus('No se pudo leer: el texto no es un respaldo válido (¿está completo?).', false);
+    return;
+  }
+  const asText = v => (typeof v === 'string' ? v : JSON.stringify(v));
+  let eventos;
+  try{
+    eventos = JSON.parse(asText(data.agenda_eventos || '[]'));
+    if(!Array.isArray(eventos)) throw new Error('eventos');
+  }catch(err){
+    showImportStatus('Ese archivo no parece un respaldo de la agenda (no tiene eventos).', false);
+    return;
+  }
+  localStorage.setItem('agenda_eventos', JSON.stringify(eventos));
+  if(data.agenda_registro)   localStorage.setItem('agenda_registro', asText(data.agenda_registro));
+  if(data.agenda_referencia) localStorage.setItem('agenda_referencia', asText(data.agenda_referencia));
+  if(data.agenda_espera)     localStorage.setItem('agenda_espera', asText(data.agenda_espera));
+
+  events = loadEvents();
+  registro = loadRegistro();
+  referencia = loadReferencia();
+  waitlist = loadWaitlist();
+  renderCalendar();
+  showImportStatus(`Listo: se importaron ${eventos.length} eventos.`, true);
+}
 
 document.getElementById('importFileInput').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
+  showImportStatus('Leyendo archivo…', true);
   const reader = new FileReader();
-  reader.onload = ()=>{
-    try{
-      const data = JSON.parse(reader.result);
-      if(data.agenda_eventos) localStorage.setItem('agenda_eventos', data.agenda_eventos);
-      if(data.agenda_registro) localStorage.setItem('agenda_registro', data.agenda_registro);
-      if(data.agenda_referencia) localStorage.setItem('agenda_referencia', data.agenda_referencia);
-      if(data.agenda_espera) localStorage.setItem('agenda_espera', data.agenda_espera);
-
-      events = loadEvents();
-      registro = loadRegistro();
-      referencia = loadReferencia();
-      waitlist = loadWaitlist();
-
-      renderCalendar();
-      alert('Listo, se importó el respaldo.');
-    }catch(err){
-      alert('No se pudo leer ese archivo. Tiene que ser un respaldo exportado desde acá.');
-    }
-    e.target.value = '';
-  };
+  reader.onload = ()=> importFromText(reader.result);
+  reader.onerror = ()=> showImportStatus('No se pudo abrir el archivo. Probá pegando el texto abajo.', false);
   reader.readAsText(file);
+  e.target.value = '';
+});
+document.getElementById('importTextBtn').addEventListener('click', ()=>{
+  const t = document.getElementById('importText').value;
+  if(!t.trim()){ showImportStatus('Pegá primero el texto del respaldo.', false); return; }
+  importFromText(t);
 });
 
 /* ---------------- Cerrar modales tocando el fondo ---------------- */
-[editOverlay, detailOverlay, debtorsOverlay, availabilityOverlay, waitlistOverlay, waitlistMatchOverlay].forEach(ov=>{
+[editOverlay, detailOverlay, debtorsOverlay, availabilityOverlay, waitlistOverlay, waitlistMatchOverlay, searchOverlay, importOverlay].forEach(ov=>{
   ov.addEventListener('click', (e)=>{
     if(e.target === ov) ov.classList.remove('open');
   });
