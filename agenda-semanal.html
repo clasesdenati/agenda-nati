@@ -18,7 +18,7 @@
     --aislada: #b5652d;
     --aislada-bg: #f3e5d8;
     --agenda: #d9775a;
-    --agenda-bg: #fceee8;
+    --agenda-bg: #fadcd0;
     --extra: #2f6fb0;
     --extra-bg: #e1ecf7;
     --personal: #6b5b95;
@@ -253,6 +253,12 @@
     position:absolute; left:0; right:0;
     background:rgba(110,100,70,.10);
     pointer-events:none;
+  }
+  .block-band{
+    position:absolute; left:0; right:0;
+    background:repeating-linear-gradient(135deg,rgba(120,112,90,.16) 0 5px,rgba(120,112,90,.06) 5px 10px);
+    font-size:0.58rem; color:var(--ink-soft); padding:2px 4px; line-height:1;
+    pointer-events:none; overflow:hidden;
   }
   .time-slot.dim{ opacity:.4; }
   .time-slot.is-ref{ color:var(--ink); font-weight:700; }
@@ -984,6 +990,7 @@ function renderCalendar(){
 
     const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
     drawClassBreaks(col);
+    drawBlockedSlots(col, toISODate(date));
     laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
 
     if(sameDate(date, today)){
@@ -1034,6 +1041,22 @@ function drawClassBreaks(col){
       band.style.height = (pctOfDay(end) - pctOfDay(start)) + '%';
       col.appendChild(band);
     }
+  });
+}
+function drawBlockedSlots(col, dateISO){
+  const dayStart = DAY_START_HOUR*60, dayEnd = DAY_END_HOUR*60;
+  bloqueos.forEach(k=>{
+    const [d, t] = k.split('|');
+    if(d !== dateISO) return;
+    const start = minutesOf(t);
+    if(start < dayStart || start >= dayEnd) return;
+    const end = Math.min(start + 60, dayEnd);
+    const band = document.createElement('div');
+    band.className = 'block-band';
+    band.style.top = pctOfDay(start) + '%';
+    band.style.height = (pctOfDay(end) - pctOfDay(start)) + '%';
+    band.textContent = 'sin clase';
+    col.appendChild(band);
   });
 }
 function decorateTimeCol(timeCol){
@@ -1519,6 +1542,7 @@ document.getElementById('shareBtn').addEventListener('click', ()=>{
   if(!evt) return;
   const url = 'https://wa.me/?text=' + encodeURIComponent(buildWhatsAppMessage(evt, detailDate));
   window.open(url, '_blank');
+  detailOverlay.classList.remove('open');   // vuelve a la agenda
 });
 
 function buildDeberesMessage(){
@@ -1675,6 +1699,20 @@ function renderDebtors(){
 
 /* ---------------- Horarios de referencia y disponibilidad ---------------- */
 const CUPO_REFERENCIA = 4;
+
+/* Horarios sin clase puntuales (ej. un día que tengo médico): "YYYY-MM-DD|HH:MM" */
+function loadBloqueos(){
+  try{ const a = JSON.parse(localStorage.getItem('agenda_bloqueos') || '[]'); return Array.isArray(a) ? a : []; }
+  catch(e){ return []; }
+}
+function saveBloqueos(){ localStorage.setItem('agenda_bloqueos', JSON.stringify(bloqueos)); }
+let bloqueos = loadBloqueos();
+function isBlocked(dateISO, time){ return bloqueos.includes(dateISO+'|'+time); }
+function toggleBlock(dateISO, time){
+  const k = dateISO+'|'+time;
+  bloqueos = bloqueos.includes(k) ? bloqueos.filter(x=>x!==k) : bloqueos.concat(k);
+  saveBloqueos();
+}
 const DEFAULT_HORARIOS = ['10:30','14:00','15:00','16:00','17:00'];
 
 function loadReferencia(){
@@ -1802,16 +1840,29 @@ function renderAvailability(){
     lab.textContent = hr;
     table.appendChild(lab);
     dates.forEach(d=>{
+      const dISO = toISODate(d);
+      const blocked = isBlocked(dISO, hr);
       const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr).length;
       const free = Math.max(CUPO_REFERENCIA - count, 0);
       const cell = document.createElement('div');
-      cell.style.cssText = 'height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-num);'+
-        (free > 0 ? 'background:#dcedde;color:#2f6b4a;' : 'background:#f8d9cd;');
-      cell.textContent = free > 0 ? String(free) : '';
+      cell.style.cssText = 'height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-num);cursor:pointer;'+
+        (blocked ? 'background:var(--panel);'
+                 : free > 0 ? 'background:#dcedde;color:#2f6b4a;' : 'background:#f8d9cd;');
+      cell.textContent = blocked ? '' : (free > 0 ? String(free) : '');
+      cell.addEventListener('click', ()=>{
+        toggleBlock(dISO, hr);
+        renderAvailability();
+        renderCalendar();
+      });
       table.appendChild(cell);
     });
   });
   list.appendChild(table);
+
+  const hint = document.createElement('div');
+  hint.style.cssText = 'font-size:0.75rem;color:var(--ink-soft);margin-top:10px;';
+  hint.textContent = 'Tocá una casilla para desactivar ese día y horario (queda en blanco). Tocala de nuevo para activarlo.';
+  list.appendChild(hint);
 }
 
 /* ---------------- Lista de espera ---------------- */
@@ -1918,6 +1969,7 @@ function renderWaitlistList(){
 }
 
 function checkWaitlistMatch(dateISO, startTime){
+  if(isBlocked(dateISO, startTime)) return;
   const matches = waitlistMatches(dateISO, startTime);
   if(matches.length === 0) return;
 
@@ -1961,6 +2013,7 @@ function exportAllData(){
     agenda_registro: localStorage.getItem('agenda_registro') || '{}',
     agenda_referencia: localStorage.getItem('agenda_referencia') || '',
     agenda_espera: localStorage.getItem('agenda_espera') || '[]',
+    agenda_bloqueos: localStorage.getItem('agenda_bloqueos') || '[]',
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2014,11 +2067,13 @@ function importFromText(text){
   if(data.agenda_registro)   localStorage.setItem('agenda_registro', asText(data.agenda_registro));
   if(data.agenda_referencia) localStorage.setItem('agenda_referencia', asText(data.agenda_referencia));
   if(data.agenda_espera)     localStorage.setItem('agenda_espera', asText(data.agenda_espera));
+  if(data.agenda_bloqueos)   localStorage.setItem('agenda_bloqueos', asText(data.agenda_bloqueos));
 
   events = loadEvents();
   registro = loadRegistro();
   referencia = loadReferencia();
   waitlist = loadWaitlist();
+  bloqueos = loadBloqueos();
   renderCalendar();
   showImportStatus(`Listo: se importaron ${eventos.length} eventos.`, true);
 }
