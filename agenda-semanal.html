@@ -395,6 +395,16 @@
   .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:var(--extra); background:var(--extra-bg); }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:var(--personal); background:var(--personal-bg); }
 
+  .day-picker{ display:flex; gap:5px; }
+  .day-picker button{
+    flex:1; padding:9px 0; border-radius:8px; border:1.5px solid var(--line-strong);
+    background:#fff; font-family:var(--font-ui); font-size:0.8rem; font-weight:600;
+    color:var(--ink-soft); cursor:pointer;
+  }
+  .day-picker button.active{ border-color:var(--agenda); color:#b4482b; background:var(--agenda-bg); }
+  @keyframes flashNew{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,119,90,0); } 25%,75%{ box-shadow:0 0 0 3px rgba(217,119,90,.75); } }
+  .event-block.flash{ animation:flashNew 1.6s ease-in-out 1; }
+
   .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
   .btn-ghost{
     background:none;
@@ -533,16 +543,16 @@
 
     <div id="fieldsRecurrente">
       <div class="field">
-        <label for="f-day">Día de la semana</label>
-        <select id="f-day">
-          <option value="0">Lunes</option>
-          <option value="1">Martes</option>
-          <option value="2">Miércoles</option>
-          <option value="3">Jueves</option>
-          <option value="4">Viernes</option>
-          <option value="5">Sábado</option>
-          <option value="6">Domingo</option>
-        </select>
+        <label>Días de la semana (podés elegir varios)</label>
+        <div class="day-picker" id="f-days">
+          <button type="button" data-d="0">L</button>
+          <button type="button" data-d="1">M</button>
+          <button type="button" data-d="2">M</button>
+          <button type="button" data-d="3">J</button>
+          <button type="button" data-d="4">V</button>
+          <button type="button" data-d="5">S</button>
+          <button type="button" data-d="6">D</button>
+        </div>
       </div>
       <div class="row2">
         <div class="field">
@@ -603,6 +613,11 @@
     <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
     <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--personal);">Enviar deberes</button>
     <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
+
+    <div class="field" id="duplicateField" style="margin-top:14px;">
+      <button class="btn-ghost" id="duplicateBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">⧉ Duplicar</button>
+      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Abre una copia para cambiarle el nombre o la fecha.</div>
+    </div>
 
     <div class="field hidden" id="rescheduleField" style="margin-top:14px;">
       <button class="btn-ghost" id="rescheduleBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">↔️ Cambiar este día</button>
@@ -855,12 +870,22 @@ function mondayIndex(date){
 }
 
 /* ---------------- Eventos que caen en una fecha concreta ---------------- */
+const DAY_SHORT_MON = ['lun','mar','mié','jue','vie','sáb','dom'];
+// una clase de Agenda puede repetirse varios días; los datos viejos traen un solo "day"
+function evtDays(evt){
+  if(Array.isArray(evt.days) && evt.days.length) return evt.days;
+  return [evt.day];
+}
+function joinEs(arr){
+  if(arr.length <= 1) return arr.join('');
+  return arr.slice(0,-1).join(', ') + ' y ' + arr[arr.length-1];
+}
 function eventsForDate(date){
   const dow = mondayIndex(date);
   const iso = toISODate(date);
   return events.filter(evt=>{
     if(evt.type === 'recurrente'){
-      if(evt.day !== dow) return false;
+      if(!evtDays(evt).includes(dow)) return false;
       const start = new Date(evt.startDate+'T00:00:00');
       if(date < start) return false;
       if(evt.untilDate){
@@ -1107,6 +1132,8 @@ function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
   el.style.top = (ownTop + col*sliceHeight) + 'px';
   el.style.height = Math.max(sliceHeight - 1, 12) + 'px';
 
+  el.dataset.eid = evt.id;
+  el.dataset.date = dateISO;
   el.innerHTML = `<span class="ev-title">${escapeHtml(evt.title)}</span>`;
   el.addEventListener('click', ()=> openDetail(evt.id, dateISO));
   return el;
@@ -1209,9 +1236,9 @@ function snapToStep(hhmm){
   return minutesToTime(mins);
 }
 
-function openEditModal(existing){
-  editingId = existing ? existing.id : null;
-  document.getElementById('editModalTitle').textContent = 'Nuevo evento';
+function openEditModal(existing, asCopy){
+  editingId = (existing && !asCopy) ? existing.id : null;
+  document.getElementById('editModalTitle').textContent = asCopy ? 'Duplicar evento' : 'Nuevo evento';
 
   setType(existing ? existing.type : 'recurrente');
 
@@ -1224,23 +1251,38 @@ function openEditModal(existing){
   setEndTime(existing ? existing.endTime : minutesToTime(minutesOf(defaultStart) + DEFAULT_DURATION_MIN));
 
   if(existing && existing.type === 'recurrente'){
-    document.getElementById('f-day').value = existing.day;
-    document.getElementById('f-startdate').value = existing.startDate;
-    document.getElementById('f-untildate').value = existing.untilDate || '';
+    setSelectedDays(evtDays(existing));
+    // en una copia, "empieza el" arranca en el día que estabas viendo
+    document.getElementById('f-startdate').value = asCopy ? (detailDate || existing.startDate) : existing.startDate;
+    document.getElementById('f-untildate').value = asCopy ? '' : (existing.untilDate || '');
   } else {
-    document.getElementById('f-day').value = 0;
+    setSelectedDays([(mondayIndex(new Date()))]);
     document.getElementById('f-startdate').value = toISODate(new Date());
     document.getElementById('f-untildate').value = '';
   }
 
   if(existing && existing.type !== 'recurrente'){
     document.getElementById('f-date').value = existing.date;
+  } else if(existing && asCopy){
+    document.getElementById('f-date').value = detailDate || toISODate(new Date());
   } else {
     document.getElementById('f-date').value = toISODate(new Date());
   }
 
   editOverlay.classList.add('open');
 }
+
+function setSelectedDays(arr){
+  document.querySelectorAll('#f-days button').forEach(b=>{
+    b.classList.toggle('active', arr.includes(Number(b.dataset.d)));
+  });
+}
+function getSelectedDays(){
+  return Array.from(document.querySelectorAll('#f-days button.active')).map(b=>Number(b.dataset.d)).sort((a,b)=>a-b);
+}
+document.querySelectorAll('#f-days button').forEach(b=>{
+  b.addEventListener('click', ()=> b.classList.toggle('active'));
+});
 
 function setType(t){
   currentType = t;
@@ -1303,27 +1345,39 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     notes: document.getElementById('f-notes').value.trim(),
   };
 
-  let repDate;
+  let repDate;      // primer día en que aparece (para validar y para mostrarlo al guardar)
+  let checkDates = [];
   if(currentType === 'recurrente'){
-    base.day = Number(document.getElementById('f-day').value);
+    const dias = getSelectedDays();
+    if(dias.length === 0){ alert('Elegí al menos un día de la semana.'); return; }
+    base.days = dias;
+    base.day = dias[0];
     base.startDate = document.getElementById('f-startdate').value;
     base.untilDate = document.getElementById('f-untildate').value || null;
     base.excludedDates = (editingId && events.find(e=>e.id===editingId) || {}).excludedDates || [];
-    repDate = new Date(base.startDate + 'T00:00:00');
+    const d0 = new Date(base.startDate + 'T00:00:00');
+    // primera fecha de cada día elegido, a partir de "empieza el"
+    checkDates = base.days.map(dw => addDays(d0, (dw - mondayIndex(d0) + 7) % 7));
+    checkDates.sort((a,b)=> a-b);
+    repDate = checkDates[0];
   } else {
     base.date = document.getElementById('f-date').value;
     repDate = new Date(base.date + 'T00:00:00');
+    checkDates = [repDate];
   }
 
   if(currentType !== 'personal'){
-    const sameDay = eventsForDate(repDate).filter(e => e.id !== editingId && e.type !== 'personal');
     const newStart = minutesOf(startTime), newEnd = minutesOf(endTime);
-    const overlapping = sameDay.filter(e => timeRangesOverlap(newStart,newEnd, minutesOf(e.startTime), minutesOf(e.endTime)));
-    if(overlapping.length >= MAX_OVERLAP){
-      alert('Ya hay 4 eventos en ese horario. Elegí otro horario para ese día.');
-      return;
+    for(const cd of checkDates){
+      const sameDay = eventsForDate(cd).filter(e => e.id !== editingId && e.type !== 'personal');
+      const overlapping = sameDay.filter(e => timeRangesOverlap(newStart,newEnd, minutesOf(e.startTime), minutesOf(e.endTime)));
+      if(overlapping.length >= MAX_OVERLAP){
+        alert(`Ya hay 4 eventos en ese horario el ${formatDMY(toISODate(cd))}. Elegí otro horario o día.`);
+        return;
+      }
     }
   }
+  const isNew = !editingId;
 
   if(editingId){
     events = events.map(e => e.id === editingId ? base : e);
@@ -1332,7 +1386,17 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   }
   saveEvents();
   editOverlay.classList.remove('open');
-  renderCalendar();
+  if(isNew){
+    // ir al primer día en que quedó agendado y destacarlo un momento
+    currentStart = startOfDay(repDate);
+    renderCalendar();
+    const dISO = toISODate(repDate);
+    document.querySelectorAll('.event-block').forEach(el=>{
+      if(el.dataset.eid === base.id && el.dataset.date === dISO) el.classList.add('flash');
+    });
+  } else {
+    renderCalendar();
+  }
 });
 
 /* ---------------- Modal: detalle ---------------- */
@@ -1357,7 +1421,7 @@ function openDetail(id, dateISO){
 
   const dayEl = document.getElementById('d-day');
   if(evt.type === 'recurrente'){
-    let txt = `Todos los ${DAY_NAMES_FULL[evt.day]}, desde el ${formatDMY(evt.startDate)}`;
+    let txt = `Todos los ${joinEs(evtDays(evt).map(d=>DAY_NAMES_FULL[d]))}, desde el ${formatDMY(evt.startDate)}`;
     if(evt.untilDate) txt += ` hasta el ${formatDMY(evt.untilDate)}`;
     dayEl.textContent = txt;
   } else {
@@ -1496,6 +1560,13 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', ()=>{
   if(isClassType) checkWaitlistMatch(freedDate, freedTime);
 });
 
+document.getElementById('duplicateBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+  detailOverlay.classList.remove('open');
+  openEditModal(evt, true);
+});
+
 document.getElementById('editFromDetailBtn').addEventListener('click', ()=>{
   const evt = events.find(e=>e.id===detailId);
   detailOverlay.classList.remove('open');
@@ -1618,7 +1689,7 @@ function renderSearch(){
     const label = e.type==='recurrente' ? 'Agenda' : e.type==='aislada' ? 'Extra' : 'Tarea';
     const d = new Date(date+'T00:00:00');
     const meta = e.type==='recurrente'
-      ? `${label} · ${DAY_NAMES_FULL[e.day]} ${e.startTime}`
+      ? `${label} · ${evtDays(e).map(d=>DAY_SHORT_MON[d]).join('/')} ${e.startTime}`
       : `${label} · ${DOW_SHORT[d.getDay()]} ${formatDMY(date).slice(0,5)}${e.type==='personal' ? '' : ' '+e.startTime}`;
     const row = document.createElement('div');
     row.className = 'search-result';
