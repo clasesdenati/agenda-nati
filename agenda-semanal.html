@@ -6,23 +6,24 @@
 <title>Mi agenda</title>
 <style>
   :root{
-    --bg: #f6f5f1;
+    --bg: #F0F1F3;
     --panel: #ffffff;
-    --ink: #232320;
-    --ink-soft: #6b6a64;
-    --line: #e2dfd6;
-    --line-strong: #cfccc0;
+    --ink: #343A40;
+    --ink-soft: #6c7279;
+    --line: #e5e3dc;
+    --line-strong: #d3d0c5;
 
-    --recurrente: #3a6b63;
-    --recurrente-bg: #e3ede9;
-    --aislada: #b5652d;
-    --aislada-bg: #f3e5d8;
-    --agenda: #d9775a;
-    --agenda-bg: #fcf3ee;
-    --extra: #2f6fb0;
-    --extra-bg: #e1ecf7;
-    --personal: #6b5b95;
-    --personal-bg: #e9e5f2;
+    --brand: #203864;
+    --recurrente: #2A9D8F;
+    --recurrente-bg: #dff1ee;
+    --aislada: #E9B949;
+    --aislada-bg: #fbf0d2;
+    --agenda: #2A9D8F;
+    --agenda-bg: #dff1ee;
+    --extra: #E9B949;
+    --extra-bg: #fbf0d2;
+    --personal: #203864;
+    --personal-bg: #e1e6f0;
 
     --radius: 10px;
     --font-ui: 'Sora', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -58,6 +59,7 @@
     font-weight:700;
     margin:0;
     letter-spacing:-0.01em;
+    color:var(--brand);
   }
   /* Primera fila: navegación + "+ Nuevo". Nunca se parte en dos renglones,
      se achica según el ancho del celular. */
@@ -101,7 +103,7 @@
   }
 
   .btn-primary{
-    background:var(--ink);
+    background:var(--brand);
     color:#fff;
     border:none;
     border-radius:20px;
@@ -169,7 +171,7 @@
   }
   .task-chip{
     background:var(--personal-bg);
-    color:#3a3059;
+    color:#203864;
     border-left:3px solid var(--personal);
     border-radius:5px;
     padding:2px 6px;
@@ -319,9 +321,9 @@
     white-space:nowrap;
     overflow:hidden;
   }
-  .type-recurrente{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#6b2f1f; }
-  .type-aislada{ background:var(--extra-bg); border-left-color:var(--extra); color:#1c3f66; }
-  .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#3a3059; }
+  .type-recurrente{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#12504a; }
+  .type-aislada{ background:var(--extra-bg); border-left-color:var(--extra); color:#5a4410; }
+  .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#203864; }
 
   .overlay{
     position:fixed; inset:0;
@@ -391,8 +393,8 @@
     cursor:pointer;
     color:var(--ink-soft);
   }
-  .type-picker button.active[data-t="recurrente"]{ border-color:var(--agenda); color:#b4482b; background:var(--agenda-bg); }
-  .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:var(--extra); background:var(--extra-bg); }
+  .type-picker button.active[data-t="recurrente"]{ border-color:var(--agenda); color:#1f7a6f; background:var(--agenda-bg); }
+  .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:#8a6512; background:var(--extra-bg); }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:var(--personal); background:var(--personal-bg); }
 
   .day-picker{ display:flex; gap:5px; }
@@ -401,7 +403,7 @@
     background:#fff; font-family:var(--font-ui); font-size:0.8rem; font-weight:600;
     color:var(--ink-soft); cursor:pointer;
   }
-  .day-picker button.active{ border-color:var(--agenda); color:#b4482b; background:var(--agenda-bg); }
+  .day-picker button.active{ border-color:var(--agenda); color:#1f7a6f; background:var(--agenda-bg); }
   @keyframes flashNew{ 0%,100%{ box-shadow:0 0 0 0 rgba(217,119,90,0); } 25%,75%{ box-shadow:0 0 0 3px rgba(217,119,90,.75); } }
   .event-block.flash{ animation:flashNew 1.6s ease-in-out 1; }
 
@@ -442,7 +444,7 @@
     border:1px solid var(--line-strong); background:none; border-radius:16px;
     padding:4px 11px; font-family:var(--font-ui); font-size:0.78rem; color:var(--ink-soft); cursor:pointer;
   }
-  .search-chips button.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .search-chips button.active{ background:var(--brand); color:#fff; border-color:var(--ink); }
   .search-result{
     display:flex; justify-content:space-between; gap:10px; align-items:center;
     padding:9px 4px; border-bottom:1px solid var(--line); cursor:pointer; font-size:0.88rem;
@@ -472,7 +474,7 @@
   .share-btn{
     width:100%;
     margin-top:16px;
-    background:var(--ink);
+    background:var(--brand);
     color:#fff;
     border:none;
     border-radius:8px;
@@ -501,7 +503,7 @@
       <button id="nextWeek" aria-label="Días siguientes">›</button>
       <button class="today-btn" id="todayBtn">Hoy</button>
     </div>
-    <button class="btn-ghost" id="newEventBtn" style="border:1.5px solid var(--ink);border-radius:20px;">+ Nuevo</button>
+    <button class="btn-ghost" id="newEventBtn" style="border:1.5px solid var(--brand);border-radius:20px;">+ Nuevo</button>
   </div>
   <div style="flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
     <button class="btn-ghost" id="availabilityBtn" style="border:1.5px solid var(--recurrente);border-radius:20px;">Cupos</button>
@@ -513,8 +515,8 @@
         <button id="menuBuscarBtn">Buscar</button>
       </div>
     </span>
-    <button class="btn-ghost" id="exportBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Exp</button>
-    <button class="btn-ghost" id="importBtn" style="border:1.5px solid #5b7a9e;border-radius:20px;">Imp</button>
+    <button class="btn-ghost" id="exportBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Exp</button>
+    <button class="btn-ghost" id="importBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Imp</button>
     <input type="file" id="importFileInput" class="hidden">
   </div>
 </header>
@@ -1403,7 +1405,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 const detailOverlay = document.getElementById('detailOverlay');
 const typeLabels = { recurrente:'Agenda', aislada:'Extra', personal:'Tareas' };
 const typeColors = { recurrente:'var(--agenda-bg)', aislada:'var(--extra-bg)', personal:'var(--personal-bg)' };
-const typeText   = { recurrente:'#6b2f1f', aislada:'#1c3f66', personal:'#3a3059' };
+const typeText   = { recurrente:'#12504a', aislada:'#5a4410', personal:'#203864' };
 
 function openDetail(id, dateISO){
   const evt = events.find(e=>e.id===id);
@@ -1918,7 +1920,7 @@ function renderAvailability(){
       const cell = document.createElement('div');
       cell.style.cssText = 'height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-num);cursor:pointer;'+
         (blocked ? 'background:var(--panel);'
-                 : free > 0 ? 'background:#dcedde;color:#2f6b4a;' : 'background:#f8d9cd;');
+                 : free > 0 ? 'background:#d9f0ec;color:#1d6f65;' : 'background:#f8d9cd;');
       cell.textContent = blocked ? '' : (free > 0 ? String(free) : '');
       cell.addEventListener('click', ()=>{
         toggleBlock(dISO, hr);
