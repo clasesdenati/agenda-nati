@@ -986,6 +986,10 @@ function renderCalendar(){
       chip.addEventListener('click', ()=> openDetail(evt.id, toISODate(date)));
       taskRow.appendChild(chip);
     });
+    taskRow.addEventListener('click', (e)=>{
+      if(e.target.closest('.task-chip')) return;
+      openNewAt('personal', toISODate(date));
+    });
     cal.appendChild(taskRow);
   });
 
@@ -1016,6 +1020,12 @@ function renderCalendar(){
     const pxPerMin = col.clientHeight / totalMinutes;
 
     const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
+    col.addEventListener('click', (e)=>{
+      if(e.target.closest('.event-block')) return;
+      const rect = col.getBoundingClientRect();
+      const tapped = DAY_START_HOUR*60 + ((e.clientY - rect.top) / rect.height) * totalMinutes;
+      openNewAt('recurrente', toISODate(date), nearestReferenceTime(tapped));
+    });
     drawClassBreaks(col);
     drawBlockedSlots(col, toISODate(date));
     laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
@@ -1272,6 +1282,28 @@ function openEditModal(existing, asCopy){
   }
 
   editOverlay.classList.add('open');
+}
+
+// Horario de referencia (el de Cupos) más cercano al punto tocado
+function nearestReferenceTime(minutes){
+  const refs = refMinutes();
+  if(refs.length === 0) return null;
+  let best = refs[0];
+  refs.forEach(r=>{ if(Math.abs(r - minutes) < Math.abs(best - minutes)) best = r; });
+  return minutesToTime(best);
+}
+
+// Abre "Nuevo evento" ya puesto en un día (y horario) tocado; todo se puede cambiar
+function openNewAt(type, dateISO, time){
+  openEditModal(null);
+  setType(type);
+  document.getElementById('f-date').value = dateISO;
+  document.getElementById('f-startdate').value = dateISO;
+  setSelectedDays([mondayIndex(new Date(dateISO+'T00:00:00'))]);
+  if(time && type !== 'personal'){
+    setStartTime(time);
+    setEndTime(minutesToTime(minutesOf(time) + DEFAULT_DURATION_MIN));
+  }
 }
 
 function setSelectedDays(arr){
