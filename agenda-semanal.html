@@ -1616,7 +1616,7 @@ function dayPhrase(dateISO){
   const diffDays = Math.round((target - startOfDay(new Date())) / 86400000);
   if(diffDays === 0) return 'de hoy';
   if(diffDays === 1) return 'de mañana';
-  return `del ${formatDMY(dateISO)}`;
+  return `del día ${formatDMY(dateISO)}`;
 }
 
 // Google Calendar arma el evento solo con un link, sin apps ni permisos.
@@ -1639,7 +1639,7 @@ function buildGoogleCalendarLink(evt, dateISO){
 
 function buildWhatsAppMessage(evt, dateISO){
   const calLink = buildGoogleCalendarLink(evt, dateISO);
-  return `¡Hola! Te recuerdo la clase ${dayPhrase(dateISO)}.\n📅 ${formatDMY(dateISO)}\n🕐 ${evt.startTime} a ${evt.endTime}\nPor favor, confirmá tu asistencia.\n¡Saludos!\n\nGuardala en tu agenda: ${calLink}`;
+  return `Hola! Te recuerdo la clase ${dayPhrase(dateISO)}, de ${evt.startTime} a ${evt.endTime}hs\n\nPor favor, confirmá tu asistencia.\nSaludos!\n\nGuardala en tu agenda: ${calLink}`;
 }
 
 document.getElementById('shareBtn').addEventListener('click', ()=>{
