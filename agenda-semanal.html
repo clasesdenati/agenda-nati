@@ -397,6 +397,34 @@
   .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:#8a6512; background:var(--extra-bg); }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:var(--personal); background:var(--personal-bg); }
 
+  .name-suggest{
+    margin-top:4px; border:1px solid var(--line-strong); border-radius:10px;
+    background:var(--panel); overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.08);
+  }
+  .name-suggest button{
+    display:flex; justify-content:space-between; gap:8px; width:100%; text-align:left;
+    background:none; border:none; border-bottom:1px solid var(--line);
+    padding:9px 12px; font-family:var(--font-ui); font-size:0.88rem; color:var(--ink); cursor:pointer;
+  }
+  .name-suggest button:last-child{ border-bottom:none; }
+  .name-suggest button:hover{ background:var(--line); }
+  .name-suggest .ns-meta{ color:var(--ink-soft); font-size:0.74rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .name-link-info{ font-size:0.74rem; margin-top:5px; color:var(--ink-soft); }
+  .name-link-info.ok{ color:var(--recurrente); font-weight:600; }
+  .alumno-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:10px 4px; border-bottom:1px solid var(--line); cursor:pointer; font-size:0.9rem;
+  }
+  .alumno-row:hover{ background:var(--line); }
+  .alumno-row .ar-meta{ color:var(--ink-soft); font-size:0.74rem; text-align:right; }
+  .hist-row{
+    display:flex; justify-content:space-between; gap:8px; padding:7px 4px;
+    border-bottom:1px solid var(--line); font-size:0.82rem; cursor:pointer;
+  }
+  .hist-row:hover{ background:var(--line); }
+  .hist-row .debe{ color:#b4482b; font-weight:600; }
+  .hist-row .pago{ color:var(--recurrente); }
+  .ficha-section{ font-size:0.78rem; font-weight:700; color:var(--ink-soft); margin:14px 0 4px; }
   .day-picker{ display:flex; gap:5px; }
   .day-picker button{
     flex:1; padding:9px 0; border-radius:8px; border:1.5px solid var(--line-strong);
@@ -491,6 +519,17 @@
     text-align:center;
   }
 </style>
+<script>
+/* Aviso de error en pantalla (para saber qué pasa si algo falla en el celular) */
+window.addEventListener('error', function(e){
+  try{
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#fff3cd;border:1px solid #d9a400;color:#5a4410;padding:10px;border-radius:10px;font:12px/1.35 monospace;max-height:40vh;overflow:auto;';
+    d.textContent = 'Error: ' + (e.message || '') + ' [línea ' + (e.lineno || '?') + ', col ' + (e.colno || '?') + ']';
+    document.body.appendChild(d);
+  }catch(x){}
+});
+</script>
 </head>
 <body>
 
@@ -513,6 +552,7 @@
       <div class="pop-menu hidden" id="debtorsMenu">
         <button id="menuDebenBtn">Deben</button>
         <button id="menuBuscarBtn">Buscar</button>
+        <button id="menuAlumnosBtn">Alumnos</button>
       </div>
     </span>
     <button class="btn-ghost" id="exportBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Exp</button>
@@ -541,6 +581,8 @@
       <label for="f-title" id="f-title-label">Nombre del alumno</label>
       <input type="text" id="f-title">
       <textarea id="f-title-multiline" class="hidden" rows="3" style="resize:vertical;"></textarea>
+      <div id="nameSuggest" class="name-suggest hidden"></div>
+      <div id="nameLinkInfo" class="name-link-info hidden"></div>
     </div>
 
     <div id="fieldsRecurrente">
@@ -589,6 +631,14 @@
       <textarea id="f-notes" placeholder="Detalles para vos o para tus alumnos"></textarea>
     </div>
 
+    <div class="hidden" id="nameDecisionBox" style="margin-top:6px;padding:12px;background:#fff7e0;border-radius:8px;">
+      <div style="font-size:0.85rem;margin-bottom:10px;" id="nameDecisionText"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" id="nameDecisionA" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;font-size:0.8rem;"></button>
+        <button class="btn-ghost" id="nameDecisionB" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;font-size:0.8rem;"></button>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn-ghost" id="cancelEditBtn">Cancelar</button>
       <button class="btn-primary" id="saveEventBtn">Guardar</button>
@@ -605,6 +655,7 @@
     <div class="detail-time" id="d-day"></div>
     <div class="detail-loc" id="d-loc"></div>
     <div class="detail-notes" id="d-notes"></div>
+    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 12px;border:1px solid var(--line-strong);border-radius:16px;font-size:0.78rem;">Ver ficha</button>
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
       <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);">
@@ -658,6 +709,59 @@
     <div id="debtorsList" style="font-size:0.88rem;"></div>
     <div class="modal-actions">
       <button class="btn-primary" id="closeDebtorsBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: lista de alumnos ============ -->
+<div class="overlay" id="alumnosOverlay">
+  <div class="modal">
+    <h2>Alumnos</h2>
+    <input type="text" id="alumnosSearch" placeholder="Buscar alumno" autocomplete="off"
+      style="width:100%;padding:10px 12px;border:1px solid var(--line-strong);border-radius:8px;font-family:var(--font-ui);font-size:0.95rem;background:#fdfcfa;margin-bottom:8px;">
+    <div id="alumnosList"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="newAlumnoBtn">+ Nuevo alumno</button>
+      <button class="btn-primary" id="closeAlumnosBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: ficha de alumno ============ -->
+<div class="overlay" id="fichaOverlay">
+  <div class="modal">
+    <h2 id="fichaTitle">Ficha</h2>
+
+    <div class="field"><label for="fa-nombre">Nombre</label><input type="text" id="fa-nombre"></div>
+    <div class="row2">
+      <div class="field"><label for="fa-tel">Teléfono</label><input type="tel" id="fa-tel" placeholder="09X XXX XXX"></div>
+      <div class="field"><label for="fa-nivel">Nivel / materia</label><input type="text" id="fa-nivel" placeholder="Ej: 5º, álgebra"></div>
+    </div>
+    <div class="field"><label for="fa-notas">Notas</label><textarea id="fa-notas" rows="3" placeholder="Cómo aprende, qué le cuesta, objetivos…"></textarea></div>
+
+    <button class="btn-ghost hidden" id="fa-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
+
+    <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
+    <div id="fa-parecidos"></div>
+    <div id="fa-historial"></div>
+
+    <div class="ficha-section">Unir con otra ficha</div>
+    <div style="display:flex;gap:8px;">
+      <select id="fa-merge-select" style="flex:1;padding:9px 10px;border:1px solid var(--line-strong);border-radius:8px;background:#fdfcfa;font-family:var(--font-ui);"></select>
+      <button class="btn-ghost" id="fa-merge-btn" style="border:1px solid var(--line-strong);border-radius:8px;">Unir</button>
+    </div>
+    <div class="hidden" id="fa-merge-box" style="margin-top:10px;padding:12px;background:#fff7e0;border-radius:8px;">
+      <div style="font-size:0.85rem;margin-bottom:10px;" id="fa-merge-text"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-ghost" id="fa-merge-cancel" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;">Cancelar</button>
+        <button class="btn-primary" id="fa-merge-ok" style="flex:1;">Sí, unir</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost hidden" id="fa-delete">Eliminar ficha</button>
+      <button class="btn-ghost" id="fa-close">Cerrar</button>
+      <button class="btn-primary" id="fa-save">Guardar</button>
     </div>
   </div>
 </div>
@@ -792,11 +896,59 @@ const DOW_SHORT = ['dom','lun','mar','mié','jue','vie','sáb'];
 const DAY_NAMES_FULL = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'];
 
 let events = loadEvents();
+
+/* ---------------- Alumnos (fichas) ----------------
+   Cada clase (Agenda o Extra) queda vinculada a un alumno por alumnoId, no por
+   el texto del nombre. Así "Lore" y "Lorena" son la misma persona solo si lo elegís. */
+function loadAlumnos(){
+  try{
+    const a = JSON.parse(localStorage.getItem('agenda_alumnos') || '[]');
+    return Array.isArray(a) ? a : [];
+  }catch(e){ return []; }
+}
+function saveAlumnos(){ localStorage.setItem('agenda_alumnos', JSON.stringify(alumnos)); }
+let alumnos = loadAlumnos();
+
+function normName(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function alumnoById(id){ return alumnos.find(a=>a.id===id); }
+function findAlumnoByName(name){
+  const n = normName(name);
+  return alumnos.find(a=> normName(a.nombre) === n);
+}
+function createAlumno(nombre){
+  const a = { id:'al_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), nombre:String(nombre).trim(), telefono:'', nivel:'', notas:'' };
+  alumnos.push(a);
+  saveAlumnos();
+  return a;
+}
+// Toda clase tiene que tener ficha: si falta (datos viejos, respaldos, lista de
+// espera…) se vincula por nombre exacto o se crea una ficha con ese nombre.
+function ensureAlumnos(){
+  let cambioAl = false, cambioEv = false;
+  events.forEach(e=>{
+    if(e.type === 'personal') return;
+    if(e.alumnoId && alumnoById(e.alumnoId)) return;
+    let a = findAlumnoByName(e.title);
+    if(a && a.nombre !== e.title){ e.title = a.nombre; cambioEv = true; }   // "lorena" y "Lorena" quedan iguales
+    if(!a){
+      a = { id:'al_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), nombre:String(e.title).trim(), telefono:'', nivel:'', notas:'' };
+      alumnos.push(a); cambioAl = true;
+    }
+    e.alumnoId = a.id; cambioEv = true;
+  });
+  if(cambioAl) saveAlumnos();
+  if(cambioEv) localStorage.setItem('agenda_eventos', JSON.stringify(events));
+}
 let currentStart = startOfDay(new Date());
 let editingId = null;
 let detailId = null;
 let detailDate = null;
 let currentType = 'recurrente';
+let linkedAlumnoId = null;   // ficha con la que ya estaba vinculada la clase que se edita
+let pickedAlumnoId = null;   // ficha elegida (o conservada) en este formulario
+let nameDecision = null;     // 'a' | 'b' según la respuesta al aviso de nombre
 
 /* ---------------- Persistencia ---------------- */
 function loadEvents(){
@@ -806,6 +958,7 @@ function loadEvents(){
   }catch(e){ return []; }
 }
 function saveEvents(){
+  try{ ensureAlumnos(); }catch(err){ console.error(err); }
   localStorage.setItem('agenda_eventos', JSON.stringify(events));
 }
 
@@ -1251,6 +1404,12 @@ function snapToStep(hhmm){
 function openEditModal(existing, asCopy){
   editingId = (existing && !asCopy) ? existing.id : null;
   document.getElementById('editModalTitle').textContent = asCopy ? 'Duplicar evento' : 'Nuevo evento';
+  // vínculo con la ficha: al editar se puede "corregir el nombre"; en una copia no
+  linkedAlumnoId = (existing && !asCopy && existing.alumnoId) ? existing.alumnoId : null;
+  pickedAlumnoId = (existing && existing.alumnoId && alumnoById(existing.alumnoId)) ? existing.alumnoId : null;
+  nameDecision = null;
+  document.getElementById('nameDecisionBox').classList.add('hidden');
+  document.getElementById('nameSuggest').classList.add('hidden');
 
   setType(existing ? existing.type : 'recurrente');
 
@@ -1282,6 +1441,7 @@ function openEditModal(existing, asCopy){
   }
 
   editOverlay.classList.add('open');
+  updateNameLink();
 }
 
 // Horario de referencia (el de Cupos) más cercano al punto tocado
@@ -1305,6 +1465,83 @@ function openNewAt(type, dateISO, time){
     setEndTime(minutesToTime(minutesOf(time) + DEFAULT_DURATION_MIN));
   }
 }
+
+/* ---- Sugerencias de alumnos al escribir el nombre ---- */
+const titleInputEl = document.getElementById('f-title');
+function alumnoMeta(a){
+  const bits = [];
+  if(a.nivel) bits.push(a.nivel);
+  const h = alumnoSchedule(a.id);
+  if(h) bits.push(h);
+  return bits.join(' · ');
+}
+function updateNameLink(){
+  const info = document.getElementById('nameLinkInfo');
+  const val = titleInputEl.value.trim();
+  if(currentType === 'personal' || !val){ info.classList.add('hidden'); return; }
+  info.classList.remove('hidden');
+  const a = pickedAlumnoId && alumnoById(pickedAlumnoId);
+  if(a){ info.textContent = '✓ Alumno de tu lista'; info.classList.add('ok'); }
+  else { info.textContent = 'Alumno nuevo: se crea su ficha al guardar'; info.classList.remove('ok'); }
+}
+function renderNameSuggest(){
+  const box = document.getElementById('nameSuggest');
+  const q = normName(titleInputEl.value);
+  const picked = pickedAlumnoId && alumnoById(pickedAlumnoId);
+  if(currentType === 'personal' || !q || (picked && normName(picked.nombre) === q)){
+    box.classList.add('hidden'); return;
+  }
+  const list = alumnos
+    .filter(a=> normName(a.nombre).includes(q))
+    .sort((a,b)=>{
+      const as = normName(a.nombre).startsWith(q) ? 0 : 1, bs = normName(b.nombre).startsWith(q) ? 0 : 1;
+      return as - bs || a.nombre.localeCompare(b.nombre, 'es');
+    })
+    .slice(0,5);
+  if(list.length === 0){ box.classList.add('hidden'); return; }
+  box.innerHTML = '';
+  list.forEach(a=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="ns-meta">${escapeHtml(alumnoMeta(a))}</span>`;
+    b.addEventListener('click', ()=>{
+      titleInputEl.value = a.nombre;
+      pickedAlumnoId = a.id;
+      nameDecision = null;
+      document.getElementById('nameDecisionBox').classList.add('hidden');
+      box.classList.add('hidden');
+      updateNameLink();
+    });
+    box.appendChild(b);
+  });
+  box.classList.remove('hidden');
+}
+titleInputEl.addEventListener('input', ()=>{
+  nameDecision = null;
+  document.getElementById('nameDecisionBox').classList.add('hidden');
+  const cur = pickedAlumnoId && alumnoById(pickedAlumnoId);
+  if(cur && normName(cur.nombre) !== normName(titleInputEl.value)) pickedAlumnoId = null;
+  if(!pickedAlumnoId && linkedAlumnoId){
+    const l = alumnoById(linkedAlumnoId);
+    if(l && normName(l.nombre) === normName(titleInputEl.value)) pickedAlumnoId = linkedAlumnoId;
+  }
+  updateNameLink();
+  renderNameSuggest();
+});
+function setPickedAlumno(id){
+  const a = id && alumnoById(id);
+  pickedAlumnoId = a ? a.id : null;
+  if(a) titleInputEl.value = a.nombre;
+  updateNameLink();
+}
+function askName(text, labelA, labelB){
+  document.getElementById('nameDecisionText').textContent = text;
+  document.getElementById('nameDecisionA').textContent = labelA;
+  document.getElementById('nameDecisionB').textContent = labelB;
+  document.getElementById('nameDecisionBox').classList.remove('hidden');
+}
+document.getElementById('nameDecisionA').addEventListener('click', ()=>{ nameDecision = 'a'; document.getElementById('saveEventBtn').click(); });
+document.getElementById('nameDecisionB').addEventListener('click', ()=>{ nameDecision = 'b'; document.getElementById('saveEventBtn').click(); });
 
 function setSelectedDays(arr){
   document.querySelectorAll('#f-days button').forEach(b=>{
@@ -1330,6 +1567,7 @@ function setType(t){
   document.getElementById('f-title').placeholder = titlePlaceholders[t];
   document.getElementById('f-title').classList.toggle('hidden', t === 'personal');
   document.getElementById('f-title-multiline').classList.toggle('hidden', t !== 'personal');
+  if(typeof updateNameLink === 'function'){ updateNameLink(); document.getElementById('nameSuggest').classList.add('hidden'); }
 }
 
 document.querySelectorAll('#typePicker button').forEach(b=>{
@@ -1366,6 +1604,31 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     if(minutesOf(startTime) < DAY_START_HOUR*60 || minutesOf(endTime) > DAY_END_HOUR*60){
       alert(`El horario tiene que estar entre las ${pad2(DAY_START_HOUR)}:00 y las ${pad2(DAY_END_HOUR)}:00, que es el rango que se ve en la agenda.`);
       return;
+    }
+  }
+
+  // ¿a qué alumno corresponde? (solo clases; las tareas no tienen ficha)
+  let alumnoPlan = null;   // {mode:'use'|'rename'|'new', id}
+  if(currentType !== 'personal'){
+    const picked = pickedAlumnoId && alumnoById(pickedAlumnoId);
+    const linked = linkedAlumnoId && alumnoById(linkedAlumnoId);
+    const exact = findAlumnoByName(title);
+    if(picked && normName(picked.nombre) === normName(title)){
+      alumnoPlan = { mode:'use', id:picked.id };
+    } else if(exact){
+      if(nameDecision === null){
+        askName(`Ya tenés un alumno que se llama ${exact.nombre}. ¿Es el mismo?`, 'Sí, es el mismo', 'No, es otro');
+        return;
+      }
+      alumnoPlan = nameDecision === 'a' ? { mode:'use', id:exact.id } : { mode:'new' };
+    } else if(linked){
+      if(nameDecision === null){
+        askName(`Cambiaste el nombre de ${linked.nombre} a ${title}.`, 'Corregir el nombre de la ficha', 'Es otro alumno');
+        return;
+      }
+      alumnoPlan = nameDecision === 'a' ? { mode:'rename', id:linked.id } : { mode:'new' };
+    } else {
+      alumnoPlan = { mode:'new' };
     }
   }
 
@@ -1412,6 +1675,18 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     }
   }
   const isNew = !editingId;
+
+  if(alumnoPlan){
+    let al;
+    if(alumnoPlan.mode === 'use') al = alumnoById(alumnoPlan.id);
+    else if(alumnoPlan.mode === 'rename'){
+      al = alumnoById(alumnoPlan.id);
+      renameAlumno(al.id, title);
+    } else al = createAlumno(title);
+    base.alumnoId = al.id;
+    base.title = al.nombre;
+  }
+  nameDecision = null;
 
   if(editingId){
     events = events.map(e => e.id === editingId ? base : e);
@@ -1470,6 +1745,11 @@ function openDetail(id, dateISO){
   const shareHint = document.getElementById('shareHint');
   const isClass = evt.type === 'recurrente' || evt.type === 'aislada';
 
+  const alDet = evt.alumnoId ? alumnoById(evt.alumnoId) : null;
+  document.getElementById('verFichaBtn').classList.toggle('hidden', !alDet);
+  shareHint.textContent = (alDet && alDet.telefono)
+    ? `Se abre el chat con ${alDet.nombre}.`
+    : 'Se abre WhatsApp para elegir el contacto.';
   shareBtn.classList.toggle('hidden', !isClass);
   deberesBtn.classList.toggle('hidden', !isClass);
   shareHint.classList.toggle('hidden', !isClass);
@@ -1524,13 +1804,14 @@ document.getElementById('rescheduleBtn').addEventListener('click', ()=>{
 
   // armar un evento Extra pre-cargado con el mismo día y horario, para que
   // ella cambie lo que corresponda (el horario, el día, o ambos) y lo guarde
-  const title = evt.title, notes = evt.notes, startTime = evt.startTime, endTime = evt.endTime;
+  const title = evt.title, notes = evt.notes, startTime = evt.startTime, endTime = evt.endTime, alId = evt.alumnoId;
   detailOverlay.classList.remove('open');
   renderCalendar();
 
   openEditModal(null);
   setType('aislada');
   document.getElementById('f-title').value = title;
+  setPickedAlumno(alId);
   document.getElementById('f-notes').value = notes || '';
   document.getElementById('f-date').value = detailDate;
   setStartTime(startTime);
@@ -1645,17 +1926,32 @@ function buildWhatsAppMessage(evt, dateISO){
 document.getElementById('shareBtn').addEventListener('click', ()=>{
   const evt = events.find(e=>e.id===detailId);
   if(!evt) return;
-  const url = 'https://wa.me/?text=' + encodeURIComponent(buildWhatsAppMessage(evt, detailDate));
+  const url = waUrl(evt, buildWhatsAppMessage(evt, detailDate));
   window.open(url, '_blank');
   detailOverlay.classList.remove('open');   // vuelve a la agenda
 });
+
+// Si la ficha tiene teléfono, abre directo el chat de ese alumno
+function waPhone(tel){
+  let d = String(tel||'').replace(/\D/g,'');
+  if(!d) return '';
+  if(d.startsWith('00')) d = d.slice(2);
+  if(d.startsWith('0')) d = '598' + d.slice(1);
+  else if(!d.startsWith('598') && d.length <= 9) d = '598' + d;
+  return d;
+}
+function waUrl(evt, text){
+  const al = evt && evt.alumnoId ? alumnoById(evt.alumnoId) : null;
+  const num = al ? waPhone(al.telefono) : '';
+  return 'https://wa.me/' + num + '?text=' + encodeURIComponent(text);
+}
 
 function buildDeberesMessage(){
   return 'A continuación, te envío los deberes para realizar en casa con lo trabajado en clase.\n\nEs importante que los hagas lo antes posible y me mandes fotos cuando los termines.';
 }
 
 document.getElementById('deberesBtn').addEventListener('click', ()=>{
-  const url = 'https://wa.me/?text=' + encodeURIComponent(buildDeberesMessage());
+  const url = waUrl(events.find(e=>e.id===detailId), buildDeberesMessage());
   window.open(url, '_blank');
 });
 
@@ -1709,10 +2005,19 @@ function renderSearch(){
     return norm(e.title).includes(q) || norm(e.notes).includes(q);
   }).map(e=> ({ e, date: searchTargetDate(e) }));
 
-  if(found.length === 0){
+  const fichas = (searchFilter === 'tareas') ? [] : alumnos.filter(a=>
+    normName(a.nombre).includes(q) || norm(a.nivel).includes(q) || norm(a.notas).includes(q) || String(a.telefono||'').includes(q));
+  if(found.length === 0 && fichas.length === 0){
     box.innerHTML = '<p style="color:var(--ink-soft);">No encontré nada.</p>';
     return;
   }
+  fichas.slice(0,10).forEach(a=>{
+    const row = document.createElement('div');
+    row.className = 'search-result';
+    row.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="sr-meta">Ficha</span>`;
+    row.addEventListener('click', ()=>{ searchOverlay.classList.remove('open'); openAlumno(a.id); });
+    box.appendChild(row);
+  });
   // primero lo que viene (más cercano antes), después lo pasado
   found.sort((a,b)=>{
     const af = a.date >= todayISO, bf = b.date >= todayISO;
@@ -1750,6 +2055,10 @@ document.getElementById('menuDebenBtn').addEventListener('click', ()=>{
   debtorsMenu.classList.add('hidden');
   renderDebtors();
   debtorsOverlay.classList.add('open');
+});
+document.getElementById('menuAlumnosBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  openAlumnosList();
 });
 document.getElementById('menuBuscarBtn').addEventListener('click', ()=>{
   debtorsMenu.classList.add('hidden');
@@ -2101,6 +2410,8 @@ function convertWaitlistToExtra(id){
   openEditModal(null);
   setType('aislada');
   document.getElementById('f-title').value = entry.title;
+  const exAl = findAlumnoByName(entry.title);
+  setPickedAlumno(exAl ? exAl.id : null);
   document.getElementById('f-date').value = entry.date;
   populateReferenceTimeSelect(startSelect, entry.startTime);
   setStartTime(entry.startTime);
@@ -2119,6 +2430,7 @@ function exportAllData(){
     agenda_referencia: localStorage.getItem('agenda_referencia') || '',
     agenda_espera: localStorage.getItem('agenda_espera') || '[]',
     agenda_bloqueos: localStorage.getItem('agenda_bloqueos') || '[]',
+    agenda_alumnos: localStorage.getItem('agenda_alumnos') || '[]',
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2173,12 +2485,16 @@ function importFromText(text){
   if(data.agenda_referencia) localStorage.setItem('agenda_referencia', asText(data.agenda_referencia));
   if(data.agenda_espera)     localStorage.setItem('agenda_espera', asText(data.agenda_espera));
   if(data.agenda_bloqueos)   localStorage.setItem('agenda_bloqueos', asText(data.agenda_bloqueos));
+  if(data.agenda_alumnos)    localStorage.setItem('agenda_alumnos', asText(data.agenda_alumnos));
+  else localStorage.removeItem('agenda_alumnos');   // respaldo viejo: las fichas se rearman por nombre
 
   events = loadEvents();
   registro = loadRegistro();
   referencia = loadReferencia();
   waitlist = loadWaitlist();
   bloqueos = loadBloqueos();
+  alumnos = loadAlumnos();
+  ensureAlumnos();
   renderCalendar();
   showImportStatus(`Listo: se importaron ${eventos.length} eventos.`, true);
 }
@@ -2200,7 +2516,7 @@ document.getElementById('importTextBtn').addEventListener('click', ()=>{
 });
 
 /* ---------------- Cerrar modales tocando el fondo ---------------- */
-[editOverlay, detailOverlay, debtorsOverlay, availabilityOverlay, waitlistOverlay, waitlistMatchOverlay, searchOverlay, importOverlay].forEach(ov=>{
+[editOverlay, detailOverlay, debtorsOverlay, availabilityOverlay, waitlistOverlay, waitlistMatchOverlay, searchOverlay, importOverlay, document.getElementById('alumnosOverlay'), document.getElementById('fichaOverlay')].forEach(ov=>{
   ov.addEventListener('click', (e)=>{
     if(e.target === ov) ov.classList.remove('open');
   });
@@ -2219,9 +2535,27 @@ function syncFrozenColumn(){
 }
 calendarWrapEl.addEventListener('scroll', syncFrozenColumn);
 
-/* ---------------- Inicio ---------------- */
-renderCalendar();
-syncFrozenColumn();
-</script>
-</body>
-</html>
+/* ---------------- Fichas de alumnos: lista y ficha ---------------- */
+const alumnosOverlay = document.getElementById('alumnosOverlay');
+const fichaOverlay = document.getElementById('fichaOverlay');
+let fichaId = null;      // null = ficha nueva todavía sin guardar
+let mergeTargetId = null;
+
+function renameAlumno(id, nuevo){
+  const a = alumnoById(id);
+  if(!a) return;
+  a.nombre = String(nuevo).trim();
+  saveAlumnos();
+  events.forEach(e=>{ if(e.alumnoId === id) e.title = a.nombre; });
+  localStorage.setItem('agenda_eventos', JSON.stringify(events));
+}
+function alumnoEvents(id){ return events.filter(e=> e.alumnoId === id && e.type !== 'personal'); }
+
+// "lun 10:30 · mié 14:00" de sus clases fijas vigentes
+function alumnoSchedule(id){
+  const todayISO = toISODate(new Date());
+  const bits = [];
+  alumnoEvents(id).filter(e=> e.type === 'recurrente' && (!e.untilDate || e.untilDate >= todayISO)).forEach(e=>{
+    evtDays(e).forEach(d=> bits.push(`${DAY_SHORT_MON[d]} ${e.startTime}`));
+  });
+  return Array
