@@ -2529,6 +2529,7 @@ function exportAllData(){
     agenda_espera: localStorage.getItem('agenda_espera') || '[]',
     agenda_bloqueos: localStorage.getItem('agenda_bloqueos') || '[]',
     agenda_alumnos: localStorage.getItem('agenda_alumnos') || '[]',
+    agenda_distintos: localStorage.getItem('agenda_distintos') || '[]',
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -2585,6 +2586,8 @@ function importFromText(text){
   if(data.agenda_bloqueos)   localStorage.setItem('agenda_bloqueos', asText(data.agenda_bloqueos));
   if(data.agenda_alumnos)    localStorage.setItem('agenda_alumnos', asText(data.agenda_alumnos));
   else localStorage.removeItem('agenda_alumnos');   // respaldo viejo: las fichas se rearman por nombre
+  if(data.agenda_distintos)  localStorage.setItem('agenda_distintos', asText(data.agenda_distintos));
+  else localStorage.removeItem('agenda_distintos');
 
   events = loadEvents();
   registro = loadRegistro();
@@ -2592,6 +2595,7 @@ function importFromText(text){
   waitlist = loadWaitlist();
   bloqueos = loadBloqueos();
   alumnos = loadAlumnos();
+  distintos = loadDistintos();
   ensureAlumnos();
   renderCalendar();
   showImportStatus(`Listo: se importaron ${eventos.length} eventos.`, true);
@@ -2716,10 +2720,22 @@ function similarNames(n1, n2){
   const tol = sh.length >= 8 ? 2 : (sh.length >= 4 ? 1 : 0);
   return tol > 0 && lev(x,y) <= tol;
 }
+// Pares que ya marqué como "no es la misma persona": no se vuelven a ofrecer para unir
+function loadDistintos(){
+  try{ const a = JSON.parse(localStorage.getItem('agenda_distintos') || '[]'); return Array.isArray(a) ? a : []; }
+  catch(e){ return []; }
+}
+let distintos = loadDistintos();
+function pairKey(a,b){ return [a,b].sort().join('|'); }
+function markDistintos(a,b){
+  const k = pairKey(a,b);
+  if(!distintos.includes(k)) distintos.push(k);
+  localStorage.setItem('agenda_distintos', JSON.stringify(distintos));
+}
 function similarAlumnos(id){
   const a = alumnoById(id);
   if(!a) return [];
-  return alumnos.filter(o=> o.id !== id && similarNames(a.nombre, o.nombre));
+  return alumnos.filter(o=> o.id !== id && !distintos.includes(pairKey(id, o.id)) && similarNames(a.nombre, o.nombre));
 }
 
 function renderAlumnosList(){
@@ -2801,11 +2817,18 @@ function renderFichaExtras(){
       const r = document.createElement('div');
       r.style.cssText = 'display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;padding:4px 0;';
       r.innerHTML = `<span>${escapeHtml(o.nombre)}</span>`;
+      const btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;gap:6px;';
       const b = document.createElement('button');
       b.className = 'btn-ghost'; b.textContent = 'Unir';
       b.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;padding:4px 12px;';
       b.addEventListener('click', ()=> askMerge(o.id));
-      r.appendChild(b); parec.appendChild(r);
+      const n = document.createElement('button');
+      n.className = 'btn-ghost'; n.textContent = 'No es';
+      n.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;padding:4px 12px;';
+      n.addEventListener('click', ()=>{ markDistintos(fichaId, o.id); renderFichaExtras(); renderAlumnosList(); });
+      btns.appendChild(b); btns.appendChild(n);
+      r.appendChild(btns); parec.appendChild(r);
     });
   }
 
