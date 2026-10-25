@@ -519,6 +519,17 @@
     text-align:center;
   }
 </style>
+<script>
+/* Aviso de error en pantalla (para saber qué pasa si algo falla en el celular) */
+window.addEventListener('error', function(e){
+  try{
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:#fff3cd;border:1px solid #d9a400;color:#5a4410;padding:10px;border-radius:10px;font:12px/1.35 monospace;max-height:40vh;overflow:auto;';
+    d.textContent = 'Error: ' + (e.message || '') + ' [línea ' + (e.lineno || '?') + ', col ' + (e.colno || '?') + ']';
+    document.body.appendChild(d);
+  }catch(x){}
+});
+</script>
 </head>
 <body>
 
@@ -801,7 +812,7 @@
       <button class="btn-ghost" id="addHorarioBtn" style="border:1px solid var(--line-strong);border-radius:8px;white-space:nowrap;">+ Agregar</button>
     </div>
 
-    <h2>Disponibilidad</h2>
+    <h2 style="color:#1d6f65;">Disponibilidad</h2>
     <div class="week-nav" style="margin:8px 0 10px;justify-content:center;">
       <button id="availPrevBtn" aria-label="Semana anterior">‹</button>
       <span id="availWeekLabel" style="white-space:nowrap;font-size:0.8rem;color:var(--ink-soft);min-width:110px;text-align:center;"></span>
@@ -947,7 +958,7 @@ function loadEvents(){
   }catch(e){ return []; }
 }
 function saveEvents(){
-  ensureAlumnos();
+  try{ ensureAlumnos(); }catch(err){ console.error(err); }
   localStorage.setItem('agenda_eventos', JSON.stringify(events));
 }
 
@@ -2766,7 +2777,7 @@ document.getElementById('fa-merge-ok').addEventListener('click', ()=>{
 });
 
 /* ---------------- Inicio ---------------- */
-ensureAlumnos();
+try{ ensureAlumnos(); }catch(err){ console.error(err); }
 renderCalendar();
 syncFrozenColumn();
 </script>
