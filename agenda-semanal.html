@@ -861,7 +861,8 @@ window.addEventListener('error', function(e){
 
     <div class="field">
       <label for="w-title">Nombre</label>
-      <input type="text" id="w-title">
+      <input type="text" id="w-title" autocomplete="off">
+      <div id="wNameSuggest" class="name-suggest hidden"></div>
     </div>
     <div class="field">
       <label for="w-date">Fecha</label>
@@ -1948,8 +1949,7 @@ function buildGoogleCalendarLink(evt, dateISO){
 }
 
 function buildWhatsAppMessage(evt, dateISO){
-  const calLink = buildGoogleCalendarLink(evt, dateISO);
-  return `Hola! Te recuerdo la clase ${dayPhrase(dateISO)}, de ${evt.startTime} a ${evt.endTime}hs\n\nPor favor, confirmá tu asistencia.\nSaludos!\n\nGuardala en tu agenda: ${calLink}`;
+  return `Hola! Te recuerdo la clase ${dayPhrase(dateISO)}, de ${evt.startTime} a ${evt.endTime}hs\n\nPor favor, confirmá tu asistencia.\nSaludos!`;
 }
 
 document.getElementById('shareBtn').addEventListener('click', ()=>{
@@ -2046,16 +2046,20 @@ function renderSearch(){
     return norm(e.title).includes(q) || norm(e.notes).includes(q);
   }).map(e=> ({ e, date: searchTargetDate(e) }));
 
+  // el nivel se busca sin importar ° / º ni mayúsculas: "ems", "7", "7°", "utu"…
+  const sinGrado = t => normName(t).replace(/[°º]/g,'');
+  const qn = sinGrado(q);
   const fichas = (searchFilter === 'tareas') ? [] : alumnos.filter(a=>
-    normName(a.nombre).includes(q) || norm(a.nivel).includes(q) || norm(a.notas).includes(q) || String(a.telefono||'').includes(q));
+    normName(a.nombre).includes(q) || sinGrado(a.nivel).includes(qn) || norm(a.notas).includes(q) || String(a.telefono||'').includes(q))
+    .sort((x,y)=> x.nombre.localeCompare(y.nombre,'es'));
   if(found.length === 0 && fichas.length === 0){
     box.innerHTML = '<p style="color:var(--ink-soft);">No encontré nada.</p>';
     return;
   }
-  fichas.slice(0,10).forEach(a=>{
+  fichas.slice(0,80).forEach(a=>{
     const row = document.createElement('div');
     row.className = 'search-result';
-    row.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="sr-meta">Ficha</span>`;
+    row.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="sr-meta">${escapeHtml(a.nivel || 'Ficha')}</span>`;
     row.addEventListener('click', ()=>{ searchOverlay.classList.remove('open'); openAlumno(a.id); });
     box.appendChild(row);
   });
@@ -2440,8 +2444,34 @@ wStartSelect.addEventListener('change', ()=>{
   wEndSelect.value = minutesToTime(mins);
 });
 
+function renderWaitSuggest(){
+  const box = document.getElementById('wNameSuggest');
+  const input = document.getElementById('w-title');
+  const q = normName(input.value);
+  if(!q){ box.classList.add('hidden'); return; }
+  const list = alumnos
+    .filter(a=> normName(a.nombre).includes(q) && normName(a.nombre) !== q)
+    .sort((a,b)=>{
+      const as = normName(a.nombre).startsWith(q) ? 0 : 1, bs = normName(b.nombre).startsWith(q) ? 0 : 1;
+      return as - bs || a.nombre.localeCompare(b.nombre,'es');
+    })
+    .slice(0,5);
+  if(!list.length){ box.classList.add('hidden'); return; }
+  box.innerHTML = '';
+  list.forEach(a=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="ns-meta">${escapeHtml(a.nivel || '')}</span>`;
+    b.addEventListener('click', ()=>{ input.value = a.nombre; box.classList.add('hidden'); });
+    box.appendChild(b);
+  });
+  box.classList.remove('hidden');
+}
+document.getElementById('w-title').addEventListener('input', renderWaitSuggest);
+
 document.getElementById('waitlistBtn').addEventListener('click', ()=>{
   document.getElementById('w-title').value = '';
+  document.getElementById('wNameSuggest').classList.add('hidden');
   document.getElementById('w-date').value = toISODate(new Date());
   populateReferenceTimeSelect(wStartSelect, null);
   const defaultStart = firstReferenceTime();
@@ -2469,6 +2499,7 @@ document.getElementById('addWaitlistBtn').addEventListener('click', ()=>{
   });
   saveWaitlist();
   document.getElementById('w-title').value = '';
+  document.getElementById('wNameSuggest').classList.add('hidden');
   renderWaitlistList();
 });
 
@@ -2686,7 +2717,7 @@ const NIVELES = [
   '2° EMS Liceo','2° EMS UTU','2° EMS Nocturno',
   '3° EMS Liceo','3° EMS UTU','3° EMS Nocturno',
   'Acredita CB','Acredita EMS',
-  'Udelar','UCU','UDE','ORT','Magisterio','Profesorado','Prueba de ingreso'
+  'Udelar','UCU','UDE','ORT','Magisterio','Profesorado','UTU Terciario','Prueba de ingreso'
 ];
 (function buildNivelSelect(){
   const sel = document.getElementById('fa-nivel');
@@ -2789,7 +2820,7 @@ function renderAlumnosList(){
     const sim = similarAlumnos(a.id);
     const row = document.createElement('div');
     row.className = 'alumno-row';
-    const meta = [alumnoMeta(a)].filter(Boolean).join('');
+    const meta = a.nivel || '';
     row.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span>
       <span class="ar-meta">${sim.length ? '<span style="color:#b4482b;font-weight:600;">¿repetido? </span>' : ''}${escapeHtml(meta)}</span>`;
     row.addEventListener('click', ()=> openAlumno(a.id));
