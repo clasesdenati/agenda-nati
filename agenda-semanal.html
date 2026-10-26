@@ -760,6 +760,7 @@ window.addEventListener('error', function(e){
     <div class="ficha-section" style="margin-top:12px;">Notas</div>
     <textarea id="fa-notas" rows="3"></textarea>
 
+    <button class="btn-ghost hidden" id="fa-reserva" style="width:100%;border:1px solid var(--brand);color:var(--brand);border-radius:8px;margin-bottom:6px;">Enviar aviso de reserva</button>
     <button class="btn-ghost hidden" id="fa-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
 
     <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
@@ -840,7 +841,11 @@ window.addEventListener('error', function(e){
       <button id="availNextBtn" aria-label="Semana siguiente">›</button>
     </div>
     <div id="availabilityList" style="font-size:0.85rem;"></div>
-    <button class="btn-ghost" id="availJpgBtn" style="width:100%;margin-top:10px;border:1px solid var(--line-strong);border-radius:8px;">Descargar imagen (JPG)</button>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn-ghost" id="availShareBtn" style="flex:1;border:1px solid var(--brand);color:var(--brand);border-radius:8px;">Enviar por WhatsApp</button>
+      <button class="btn-ghost" id="availJpgBtn" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;">Descargar JPG</button>
+    </div>
+    <div id="availShareMsg" style="font-size:0.75rem;color:var(--ink-soft);margin-top:6px;"></div>
 
     <div class="modal-actions">
       <button class="btn-primary" id="closeAvailabilityBtn">Cerrar</button>
@@ -1729,7 +1734,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     renderCalendar();
   }
   // alumno que todavía no estaba en la lista: ir a completar su ficha
-  if(alumnoPlan && alumnoPlan.mode === 'new') openAlumno(base.alumnoId);
+  if(alumnoPlan && alumnoPlan.mode === 'new') openAlumno(base.alumnoId, { evtId: base.id, date: toISODate(repDate) });
 });
 
 /* ---------------- Modal: detalle ---------------- */
@@ -1970,6 +1975,18 @@ function waUrl(evt, text){
   return 'https://wa.me/' + num + '?text=' + encodeURIComponent(text);
 }
 
+// Aviso de reserva
+function buildReservaMessage(evt, dateISO){
+  let dia;
+  if(evt.type === 'recurrente'){
+    const lista = joinEs(evtDays(evt).map(d=>DAY_NAMES_FULL[d]));
+    dia = `todos los ${lista}, desde el ${formatDMY(dateISO)}`;
+  } else {
+    dia = formatDMY(dateISO);
+  }
+  return `Se realizó la reserva de tu clase en las @clasesDeNati\nDía: ${dia}\nHora: ${evt.startTime} a ${evt.endTime}hs\nGuardala en tu agenda: ${buildGoogleCalendarLink(evt, dateISO)}`;
+}
+
 function buildDeberesMessage(){
   return 'A continuación, te envío los deberes para realizar en casa con lo trabajado en clase.\n\nEs importante que los hagas lo antes posible y me mandes fotos cuando los termines.';
 }
@@ -2195,6 +2212,7 @@ document.getElementById('availPrevBtn').addEventListener('click', ()=>{ availWee
 document.getElementById('availNextBtn').addEventListener('click', ()=>{ availWeekStart = addDays(availWeekStart, 7); renderAvailability(); });
 document.getElementById('availabilityBtn').addEventListener('click', ()=>{
   availWeekStart = mondayOfWeek(currentStart);
+  document.getElementById('availShareMsg').textContent = '';
   renderReferenciaChips();
   renderAvailability();
   availabilityOverlay.classList.add('open');
@@ -2244,7 +2262,7 @@ function mondayOfWeek(date){
 const AVAIL_LETTERS = ['L','M','M','J','V'];
 
 /* ---- Imagen (JPG) de la disponibilidad de la semana que se está viendo ---- */
-function downloadAvailabilityJPG(){
+function makeAvailabilityImage(done){
   if(!availWeekStart) availWeekStart = mondayOfWeek(currentStart);
   const horarios = referencia.horarios.slice().sort();
   if(horarios.length === 0) return;
@@ -2306,16 +2324,35 @@ function downloadAvailabilityJPG(){
   c.fillStyle = '#343A40'; c.fillText('Completo', PAD + 302, ly + 1);
 
   const name = `disponibilidad-${toISODate(dates[0])}.jpg`;
-  cv.toBlob(blob=>{
-    if(!blob) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=> URL.revokeObjectURL(url), 2000);
-  }, 'image/jpeg', 0.92);
+  cv.toBlob(blob=>{ if(blob) done(blob, name, rango); }, 'image/jpeg', 0.92);
 }
-document.getElementById('availJpgBtn').addEventListener('click', downloadAvailabilityJPG);
+function saveBlobAsFile(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=> URL.revokeObjectURL(url), 2000);
+}
+document.getElementById('availJpgBtn').addEventListener('click', ()=>{
+  document.getElementById('availShareMsg').textContent = '';
+  makeAvailabilityImage((blob, name)=> saveBlobAsFile(blob, name));
+});
+// Enviar: abre el menú de compartir del celular (ahí se elige WhatsApp y el contacto o grupo)
+document.getElementById('availShareBtn').addEventListener('click', ()=>{
+  const msg = document.getElementById('availShareMsg');
+  msg.textContent = '';
+  makeAvailabilityImage(async (blob, name, rango)=>{
+    const file = new File([blob], name, { type:'image/jpeg' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      try{
+        await navigator.share({ files:[file], text:`Disponibilidad ${rango}` });
+      }catch(e){ /* si cancelás el menú no pasa nada */ }
+    } else {
+      saveBlobAsFile(blob, name);
+      msg.textContent = 'Este navegador no deja enviarla directo: se descargó la imagen, adjuntala desde WhatsApp.';
+    }
+  });
+});
 
 function renderAvailability(){
   const list = document.getElementById('availabilityList');
@@ -2768,8 +2805,10 @@ document.getElementById('alumnosSearch').addEventListener('input', renderAlumnos
 document.getElementById('closeAlumnosBtn').addEventListener('click', ()=> alumnosOverlay.classList.remove('open'));
 document.getElementById('newAlumnoBtn').addEventListener('click', ()=> openAlumno(null));
 
-function openAlumno(id){
+let fichaFocus = null;   // clase a la que se refiere el aviso de reserva (la recién agendada o la que se estaba mirando)
+function openAlumno(id, focus){
   fichaId = id;
+  fichaFocus = focus || null;
   const a = id ? alumnoById(id) : null;
   document.getElementById('fichaTitle').textContent = a ? 'Ficha' : 'Nuevo alumno';
   document.getElementById('fa-nombre').value = a ? a.nombre : '';
@@ -2779,6 +2818,18 @@ function openAlumno(id){
   document.getElementById('fa-merge-box').classList.add('hidden');
   renderFichaExtras();
   fichaOverlay.classList.add('open');
+}
+
+let fichaTarget = null;
+// clase del aviso: la que se acaba de agendar o se estaba mirando; si no, la próxima del alumno
+function reservaTarget(id){
+  if(fichaFocus){
+    const e = events.find(x=> x.id === fichaFocus.evtId && x.alumnoId === id);
+    if(e) return { evt:e, date:fichaFocus.date };
+  }
+  const todayISO = toISODate(new Date());
+  const next = alumnoOccurrences(id).find(o=> o.date >= todayISO);
+  return next ? { evt:next.evt, date:next.date } : null;
 }
 
 function renderFichaExtras(){
@@ -2791,6 +2842,8 @@ function renderFichaExtras(){
   const a = id ? alumnoById(id) : null;
 
   document.getElementById('fa-wa').classList.toggle('hidden', !(a && waPhone(a.telefono)));
+  fichaTarget = a ? reservaTarget(id) : null;
+  document.getElementById('fa-reserva').classList.toggle('hidden', !fichaTarget);
   document.getElementById('fa-delete').classList.toggle('hidden', !(a && alumnoEvents(id).length === 0));
   document.getElementById('fa-merge-btn').disabled = !a;
 
@@ -2874,6 +2927,10 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
   renderCalendar();
 });
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
+document.getElementById('fa-reserva').addEventListener('click', ()=>{
+  if(!fichaTarget) return;
+  window.open(waUrl(fichaTarget.evt, buildReservaMessage(fichaTarget.evt, fichaTarget.date)), '_blank');
+});
 document.getElementById('fa-wa').addEventListener('click', ()=>{
   const a = alumnoById(fichaId);
   if(a && waPhone(a.telefono)) window.open('https://wa.me/' + waPhone(a.telefono), '_blank');
@@ -2889,7 +2946,7 @@ document.getElementById('verFichaBtn').addEventListener('click', ()=>{
   const evt = events.find(e=>e.id===detailId);
   if(!evt || !evt.alumnoId) return;
   detailOverlay.classList.remove('open');
-  openAlumno(evt.alumnoId);
+  openAlumno(evt.alumnoId, { evtId: evt.id, date: detailDate });
 });
 
 function askMerge(otherId){
