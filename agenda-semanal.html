@@ -67,11 +67,29 @@
     flex-basis:100%;
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:center;
     flex-wrap:nowrap;
     gap:8px;
   }
-  .top-row #newEventBtn{ flex-shrink:0; white-space:nowrap; padding:7px 12px; font-size:0.82rem; }
+  /* tres botones iguales en un mismo renglón: Cupos · menú · + Nuevo */
+  .action-row{
+    flex-basis:100%;
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:8px;
+  }
+  .action-row .menu-wrap{ display:block; }
+  .action-row .btn-ghost{
+    width:100%;
+    height:36px;
+    padding:0 10px;
+    border:1.5px solid var(--brand);
+    border-radius:20px;
+    color:var(--ink);
+    font-size:0.85rem;
+    display:flex; align-items:center; justify-content:center;
+    white-space:nowrap;
+  }
   .week-nav{
     display:flex;
     align-items:center;
@@ -479,7 +497,7 @@
   /* botón Deben (solo borde) con menú desplegable */
   .menu-wrap{ position:relative; display:inline-block; }
   .pop-menu{
-    position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%);
+    position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%); min-width:150px;
     background:var(--panel); border:1px solid var(--line-strong); border-radius:12px;
     box-shadow:0 6px 18px rgba(0,0,0,.14); padding:4px; z-index:40; min-width:120px;
   }
@@ -564,21 +582,21 @@ window.addEventListener('error', function(e){
       <button id="nextWeek" aria-label="Días siguientes">›</button>
       <button class="today-btn" id="todayBtn">Hoy</button>
     </div>
-    <button class="btn-ghost" id="newEventBtn" style="border:1.5px solid var(--brand);border-radius:20px;">+ Nuevo</button>
   </div>
-  <div style="flex-basis:100%;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-    <button class="btn-ghost" id="availabilityBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Cupos</button>
-    <button class="btn-ghost" id="waitlistBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Espera</button>
+  <div class="action-row">
+    <button class="btn-ghost" id="availabilityBtn">Cupos</button>
     <span class="menu-wrap">
-      <button class="btn-ghost" id="debtorsBtn" aria-label="Deben y buscar" style="border:1.5px solid var(--brand);border-radius:20px;min-width:44px;">&nbsp;</button>
+      <button class="btn-ghost" id="debtorsBtn" aria-label="Más opciones">&nbsp;</button>
       <div class="pop-menu hidden" id="debtorsMenu">
-        <button id="menuDebenBtn">Deben</button>
-        <button id="menuBuscarBtn">Buscar</button>
         <button id="menuAlumnosBtn">Alumnos</button>
+        <button id="menuBuscarBtn">Buscar</button>
+        <button id="menuDebenBtn">Deben</button>
+        <button id="waitlistBtn">Espera</button>
+        <button id="exportBtn">Exp</button>
+        <button id="importBtn">Imp</button>
       </div>
     </span>
-    <button class="btn-ghost" id="exportBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Exp</button>
-    <button class="btn-ghost" id="importBtn" style="border:1.5px solid var(--brand);border-radius:20px;">Imp</button>
+    <button class="btn-ghost" id="newEventBtn">+ Nuevo</button>
     <input type="file" id="importFileInput" class="hidden">
   </div>
 </header>
