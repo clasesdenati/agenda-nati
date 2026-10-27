@@ -276,9 +276,8 @@
   }
   .block-band{
     position:absolute; left:0; right:0;
-    background:repeating-linear-gradient(135deg,rgba(120,112,90,.16) 0 5px,rgba(120,112,90,.06) 5px 10px);
-    font-size:0.58rem; color:var(--ink-soft); padding:2px 4px; line-height:1;
-    pointer-events:none; overflow:hidden;
+    background:rgba(52,58,64,.09);
+    pointer-events:none;
   }
   .time-slot.dim{ opacity:.4; }
   .time-slot.is-ref{ color:var(--ink); font-weight:700; }
@@ -1291,7 +1290,6 @@ function drawBlockedSlots(col, dateISO){
     band.className = 'block-band';
     band.style.top = pctOfDay(start) + '%';
     band.style.height = (pctOfDay(end) - pctOfDay(start)) + '%';
-    band.textContent = 'sin clase';
     col.appendChild(band);
   });
 }
