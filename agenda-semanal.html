@@ -703,6 +703,7 @@ window.addEventListener('error', function(e){
     </div>
 
     <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
+    <button class="share-btn hidden" id="reservaBtn" style="margin-top:8px;background:var(--brand);">Enviar aviso de reserva</button>
     <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Enviar deberes</button>
     <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
 
@@ -777,7 +778,6 @@ window.addEventListener('error', function(e){
     <div class="ficha-section" style="margin-top:12px;">Notas</div>
     <textarea id="fa-notas" rows="3"></textarea>
 
-    <button class="btn-ghost hidden" id="fa-reserva" style="width:100%;border:1px solid var(--brand);color:var(--brand);border-radius:8px;margin-bottom:6px;">Enviar aviso de reserva</button>
     <button class="btn-ghost hidden" id="fa-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
 
     <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
@@ -1798,6 +1798,7 @@ function openDetail(id, dateISO){
     : 'Se abre WhatsApp para elegir el contacto.';
   shareBtn.classList.toggle('hidden', !isClass);
   deberesBtn.classList.toggle('hidden', !isClass);
+  document.getElementById('reservaBtn').classList.toggle('hidden', !isClass);
   shareHint.classList.toggle('hidden', !isClass);
 
   // registro de asistencia / pago de este día puntual
@@ -1965,7 +1966,7 @@ function buildGoogleCalendarLink(evt, dateISO){
 }
 
 function buildWhatsAppMessage(evt, dateISO){
-  return `Hola! Te recuerdo la clase ${dayPhrase(dateISO)}, de ${evt.startTime} a ${evt.endTime}hs\n\nPor favor, confirmá tu asistencia.\nSaludos!`;
+  return `Hola! Te recuerdo la clase ${dayPhrase(dateISO)}, a las ${evt.startTime}hs\n\nPor favor, confirmar asistencia.\nSaludos!`;
 }
 
 document.getElementById('shareBtn').addEventListener('click', ()=>{
@@ -1974,6 +1975,13 @@ document.getElementById('shareBtn').addEventListener('click', ()=>{
   const url = waUrl(evt, buildWhatsAppMessage(evt, detailDate));
   window.open(url, '_blank');
   detailOverlay.classList.remove('open');   // vuelve a la agenda
+});
+
+document.getElementById('reservaBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+  window.open(waUrl(evt, buildReservaMessage(evt, detailDate)), '_blank');
+  detailOverlay.classList.remove('open');
 });
 
 // Si la ficha tiene teléfono, abre directo el chat de ese alumno
@@ -2000,7 +2008,7 @@ function buildReservaMessage(evt, dateISO){
   } else {
     dia = formatDMY(dateISO);
   }
-  return `Se realizó la reserva de tu clase en las @clasesDeNati\nDía: ${dia}\nHora: ${evt.startTime} a ${evt.endTime}hs\nGuardala en tu agenda: ${buildGoogleCalendarLink(evt, dateISO)}`;
+  return `Se realizó la reserva de tu clase en las @clasesDeNati\n\nDía: ${dia}\nHora: ${evt.startTime}\n\nGuardala en tu agenda: ${buildGoogleCalendarLink(evt, dateISO)}`;
 }
 
 function buildDeberesMessage(){
@@ -2889,8 +2897,6 @@ function renderFichaExtras(){
   const a = id ? alumnoById(id) : null;
 
   document.getElementById('fa-wa').classList.toggle('hidden', !(a && waPhone(a.telefono)));
-  fichaTarget = a ? reservaTarget(id) : null;
-  document.getElementById('fa-reserva').classList.toggle('hidden', !fichaTarget);
   document.getElementById('fa-delete').classList.toggle('hidden', !(a && alumnoEvents(id).length === 0));
   document.getElementById('fa-merge-btn').disabled = !a;
 
@@ -2974,10 +2980,6 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
   renderCalendar();
 });
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
-document.getElementById('fa-reserva').addEventListener('click', ()=>{
-  if(!fichaTarget) return;
-  window.open(waUrl(fichaTarget.evt, buildReservaMessage(fichaTarget.evt, fichaTarget.date)), '_blank');
-});
 document.getElementById('fa-wa').addEventListener('click', ()=>{
   const a = alumnoById(fichaId);
   if(a && waPhone(a.telefono)) window.open('https://wa.me/' + waPhone(a.telefono), '_blank');
