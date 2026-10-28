@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mi agenda</title>
+<link rel="manifest" href="agenda-manifest.json">
+<meta name="theme-color" content="#203864">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi agenda">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <style>
   :root{
     --bg: #F0F1F3;
@@ -486,6 +494,47 @@
   }
   .hidden{ display:none !important; }
 
+  /* avisos (copia de seguridad, pruebas) */
+  #avisos{ padding:0 12px; display:flex; flex-direction:column; gap:6px; }
+  #avisos:not(:empty){ padding-bottom:8px; }
+  .aviso{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line-strong); border-radius:10px; padding:7px 8px 7px 10px; font-size:0.78rem; line-height:1.3; }
+  .aviso.prueba{ border-left:4px solid #C94C4C; cursor:pointer; }
+  .aviso.copia{ border-left:4px solid var(--brand); }
+  .aviso .txt{ flex:1; min-width:0; }
+  .aviso button{ border:1px solid var(--brand); background:none; color:var(--brand); border-radius:14px; padding:4px 10px; font-size:0.74rem; cursor:pointer; font-family:var(--font-ui); white-space:nowrap; }
+  .aviso button.x{ border:none; color:var(--ink-soft); font-size:1.05rem; padding:0 6px; line-height:1; }
+  .task-chip.prueba{ background:#fbe3e3; color:#8a2f2f; border-left-color:#C94C4C; }
+
+  /* vista de semana (5 columnas) */
+  .calendar.semana .event-block{ font-size:0.6rem; padding:2px 3px 0; border-left-width:2px; }
+  .calendar.semana .event-block.stacked{ font-size:0.56rem; padding:0 3px; }
+  .calendar.semana .time-slot{ font-size:0.55rem; }
+  .calendar.semana .task-chip{ font-size:0.58rem; padding:2px 3px; }
+  .calendar.semana .day-head .dname{ font-size:0.66rem; }
+
+  /* nota de la clase */
+  #d-nota{ width:100%; margin-top:10px; padding:9px 10px; border:1px solid var(--line-strong); border-radius:8px; font-family:var(--font-ui); font-size:0.88rem; background:#fdfcfa; resize:vertical; min-height:62px; }
+  .ledger-nota{ grid-column:1 / -1; padding:0 6px 7px 68px; font-size:0.74rem; font-style:italic; color:var(--ink-soft); line-height:1.35; white-space:pre-line; }
+  .ledger-row{ grid-template-rows:auto auto; }
+  .ledger-row .ledger-nota{ border-left:none !important; }
+
+  /* resumen del mes */
+  .res-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:12px; }
+  .res-nav button{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; font-size:1.1rem; cursor:pointer; color:var(--ink); }
+  .res-nav span{ font-weight:700; color:var(--brand); min-width:130px; text-align:center; }
+  .res-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .res-tile{ border-radius:10px; padding:10px 12px; background:var(--line); }
+  .res-tile b{ display:block; font-size:1.5rem; font-family:var(--font-num); line-height:1.1; }
+  .res-tile span{ font-size:0.72rem; letter-spacing:.04em; text-transform:uppercase; }
+  .res-tile.t-dadas{ background:#e1e6f0; color:#203864; }
+  .res-tile.t-cob{ background:#dff1ee; color:#12504a; }
+  .res-tile.t-debe{ background:#fbe3e3; color:#C94C4C; }
+  .res-tile.t-dar{ background:#eceef0; color:#4b5259; }
+  .res-row{ display:grid; grid-template-columns:1fr 40px 40px 54px; gap:4px; padding:7px 4px; border-bottom:1px solid var(--line); font-size:0.84rem; cursor:pointer; align-items:center; }
+  .res-row.head{ white-space:nowrap; cursor:default; font-size:0.6rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); border-bottom:1.5px solid var(--line-strong); }
+  .res-row div + div{ text-align:center; font-family:var(--font-num); }
+  .res-row .debe{ color:#C94C4C; font-weight:700; }
+
   /* deslizar con el dedo: solo se captura el movimiento horizontal */
   .calendar-wrap{ touch-action:pan-y; }
   @keyframes slideFromRight{ from{ transform:translateX(26px); opacity:.25; } to{ transform:none; opacity:1; } }
@@ -591,6 +640,9 @@ window.addEventListener('error', function(e){
         <button id="menuBuscarBtn">Buscar</button>
         <button id="menuDebenBtn">Deben</button>
         <button id="waitlistBtn">Espera</button>
+        <button id="menuResumenBtn">Resumen</button>
+        <button id="menuVistaBtn">Ver semana</button>
+        <button id="menuInstalarBtn">Instalar app</button>
         <button id="exportBtn">Exp</button>
         <button id="importBtn">Imp</button>
       </div>
@@ -599,6 +651,8 @@ window.addEventListener('error', function(e){
     <input type="file" id="importFileInput" class="hidden">
   </div>
 </header>
+
+<div id="avisos"></div>
 
 
 <div class="calendar-wrap">
@@ -700,6 +754,7 @@ window.addEventListener('error', function(e){
       <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);">
         <input type="checkbox" id="d-paid" style="width:auto;"> Pagó
       </label>
+      <textarea id="d-nota" rows="3" placeholder="Nota de la clase (qué vieron, qué le falta practicar…)"></textarea>
     </div>
 
     <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
@@ -775,6 +830,8 @@ window.addEventListener('error', function(e){
     <div class="fl"><label for="fa-nombre">Alumno</label><input type="text" id="fa-nombre"></div>
     <div class="fl"><label for="fa-tel">Teléfono</label><input type="tel" id="fa-tel" placeholder="09X XXX XXX"></div>
     <div class="fl"><label for="fa-nivel">Nivel</label><select id="fa-nivel"></select></div>
+    <div class="fl"><label for="fa-examen">Prueba</label><input type="date" id="fa-examen"><button class="btn-ghost" id="fa-examen-x" type="button" aria-label="Quitar fecha" style="padding:0 8px;font-size:1.1rem;">×</button></div>
+    <div class="fl"><label for="fa-examen-tema">Tema</label><input type="text" id="fa-examen-tema" placeholder="Opcional"></div>
     <div class="ficha-section" style="margin-top:12px;">Notas</div>
     <textarea id="fa-notas" rows="3"></textarea>
 
@@ -802,6 +859,16 @@ window.addEventListener('error', function(e){
       <button class="btn-ghost" id="fa-close">Cerrar</button>
       <button class="btn-primary" id="fa-save">Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: resumen del mes ============ -->
+<div class="overlay" id="resumenOverlay">
+  <div class="modal">
+    <h2>Resumen</h2>
+    <div class="res-nav"><button id="resPrev" aria-label="Mes anterior">‹</button><span id="resMes"></span><button id="resNext" aria-label="Mes siguiente">›</button></div>
+    <div id="resBody"></div>
+    <div class="modal-actions"><button class="btn-primary" id="closeResumenBtn">Cerrar</button></div>
   </div>
 </div>
 
@@ -934,7 +1001,10 @@ window.addEventListener('error', function(e){
 
 const DAY_START_HOUR = 8;
 const DAY_END_HOUR   = 18;
-const DAYS_VISIBLE = 3;
+let vistaSemana = false;
+try{ vistaSemana = localStorage.getItem('agenda_vista') === 'semana'; }catch(e){}
+let DAYS_VISIBLE = vistaSemana ? 5 : 3;
+function navStep(){ return vistaSemana ? 7 : DAYS_VISIBLE; }
 const MAX_OVERLAP = 4;
 const DEFAULT_DURATION_MIN = 60; // duración por defecto al elegir hora de inicio
 const DOW_SHORT = ['dom','lun','mar','mié','jue','vie','sáb'];
@@ -987,6 +1057,7 @@ function ensureAlumnos(){
   if(cambioEv) localStorage.setItem('agenda_eventos', JSON.stringify(events));
 }
 let currentStart = startOfDay(new Date());
+if(vistaSemana) currentStart = mondayOfWeek(currentStart);
 let editingId = null;
 let detailId = null;
 let detailDate = null;
@@ -1153,6 +1224,9 @@ function renderCalendar(){
 
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
+  cal.classList.toggle('semana', vistaSemana);
+  cal.style.gridTemplateColumns = vistaSemana ? '34px repeat(5, minmax(0, 1fr))' : '';
+  document.getElementById('menuVistaBtn').textContent = vistaSemana ? 'Ver 3 días' : 'Ver semana';
 
   const corner = document.createElement('div');
   corner.className = 'corner';
@@ -1182,6 +1256,14 @@ function renderCalendar(){
       chip.className = 'task-chip';
       chip.textContent = evt.title;
       chip.addEventListener('click', ()=> openDetail(evt.id, toISODate(date)));
+      taskRow.appendChild(chip);
+    });
+    const isoD = toISODate(date);
+    alumnos.filter(a=> a.examen === isoD).forEach(a=>{
+      const chip = document.createElement('div');
+      chip.className = 'task-chip prueba';
+      chip.textContent = '📝 ' + a.nombre;
+      chip.addEventListener('click', ()=> openAlumno(a.id));
       taskRow.appendChild(chip);
     });
     taskRow.addEventListener('click', (e)=>{
@@ -1354,17 +1436,65 @@ function escapeHtml(str){
   return div.innerHTML;
 }
 
+/* ---------------- Avisos: copia de seguridad y pruebas ---------------- */
+const LS_RESPALDO = 'agenda_ultimo_respaldo', LS_RESPALDO_POSP = 'agenda_respaldo_posponer';
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function marcarRespaldo(){ lsSet(LS_RESPALDO, toISODate(new Date())); lsSet(LS_RESPALDO_POSP, ''); }
+function diasDesdeRespaldo(){
+  const last = lsGet(LS_RESPALDO);
+  if(!last){ lsSet(LS_RESPALDO, toISODate(new Date())); return 0; }   // primera vez: empieza a contar hoy
+  return Math.round((startOfDay(new Date()) - new Date(last+'T00:00:00')) / 86400000);
+}
+function renderAvisos(){
+  const box = document.getElementById('avisos');
+  if(!box) return;
+  box.innerHTML = '';
+  const hoy = startOfDay(new Date());
+
+  // pruebas de los próximos 7 días
+  const proximas = alumnos.filter(a=> a.examen).map(a=>{
+    const d = new Date(a.examen+'T00:00:00');
+    return { a, d, dias: Math.round((d - hoy)/86400000) };
+  }).filter(x=> x.dias >= 0 && x.dias <= 7).sort((x,y)=> x.dias - y.dias).slice(0,3);
+  proximas.forEach(({a,d,dias})=>{
+    const cuando = dias === 0 ? 'hoy' : dias === 1 ? 'mañana' : `el ${DOW_SHORT[d.getDay()]} ${d.getDate()}`;
+    const row = document.createElement('div');
+    row.className = 'aviso prueba';
+    row.innerHTML = `<div class="txt">📝 <b>${escapeHtml(a.nombre)}</b> tiene prueba ${cuando}${a.examenTema ? ' · ' + escapeHtml(a.examenTema) : ''}</div>`;
+    row.addEventListener('click', ()=> openAlumno(a.id));
+    box.appendChild(row);
+  });
+
+  // copia de seguridad
+  if(events.length || alumnos.length){
+    const dias = diasDesdeRespaldo();
+    if(dias >= 7 && lsGet(LS_RESPALDO_POSP) !== toISODate(new Date())){
+      const row = document.createElement('div');
+      row.className = 'aviso copia';
+      row.innerHTML = `<div class="txt">Hace ${dias} días que no hacés copia de seguridad.</div><button type="button" id="avisoCopiaBtn">Copiar ahora</button><button type="button" class="x" id="avisoCopiaX" aria-label="Más tarde">×</button>`;
+      box.appendChild(row);
+      row.querySelector('#avisoCopiaBtn').addEventListener('click', ()=> exportAllData());
+      row.querySelector('#avisoCopiaX').addEventListener('click', ()=>{ lsSet(LS_RESPALDO_POSP, toISODate(new Date())); renderAvisos(); });
+    }
+  }
+}
+(function(){
+  const base = renderCalendar;
+  renderCalendar = function(){ base(); renderAvisos(); };
+})();
+
 /* ---------------- Navegación ---------------- */
 document.getElementById('prevWeek').addEventListener('click', ()=>{
-  currentStart = addDays(currentStart, -DAYS_VISIBLE);
+  currentStart = addDays(currentStart, -navStep());
   renderCalendar();
 });
 document.getElementById('nextWeek').addEventListener('click', ()=>{
-  currentStart = addDays(currentStart, DAYS_VISIBLE);
+  currentStart = addDays(currentStart, navStep());
   renderCalendar();
 });
 document.getElementById('todayBtn').addEventListener('click', ()=>{
-  currentStart = startOfDay(new Date());
+  currentStart = vistaSemana ? mondayOfWeek(new Date()) : startOfDay(new Date());
   renderCalendar();
 });
 
@@ -1393,7 +1523,7 @@ document.getElementById('todayBtn').addEventListener('click', ()=>{
     const dx = e.changedTouches[0].clientX - sx;
     if(Math.abs(dx) < 40) return;
     const colW = (wrap.clientWidth - 40) / DAYS_VISIBLE;
-    const days = Math.min(DAYS_VISIBLE, Math.max(1, Math.round(Math.abs(dx) / colW)));
+    const days = vistaSemana ? 7 : Math.min(DAYS_VISIBLE, Math.max(1, Math.round(Math.abs(dx) / colW)));
     const dir = dx < 0 ? 1 : -1;            // arrastrar a la izquierda = días que vienen
     currentStart = addDays(currentStart, dir * days);
     renderCalendar();
@@ -1807,6 +1937,7 @@ function openDetail(id, dateISO){
   if(isClass){
     const reg = getRegistro(id, dateISO);
     document.getElementById('d-paid').checked = reg.paid;
+    document.getElementById('d-nota').value = reg.nota || '';
     setRegistro(id, dateISO, reg); // queda guardado aunque no toques el checkbox
   }
 
@@ -1826,6 +1957,15 @@ document.getElementById('d-paid').addEventListener('change', (e)=>{
   if(!detailId || !detailDate) return;
   const reg = getRegistro(detailId, detailDate);
   setRegistro(detailId, detailDate, { ...reg, paid: e.target.checked });
+});
+
+document.getElementById('d-nota').addEventListener('input', (e)=>{
+  if(!detailId || !detailDate) return;
+  const reg = getRegistro(detailId, detailDate);
+  const nota = e.target.value;
+  const nuevo = { ...reg };
+  if(nota.trim()) nuevo.nota = nota; else delete nuevo.nota;
+  setRegistro(detailId, detailDate, nuevo);
 });
 
 function formatDMY(iso){
@@ -2129,6 +2269,86 @@ document.getElementById('menuAlumnosBtn').addEventListener('click', ()=>{
   debtorsMenu.classList.add('hidden');
   openAlumnosList();
 });
+document.getElementById('menuVistaBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  vistaSemana = !vistaSemana;
+  lsSet('agenda_vista', vistaSemana ? 'semana' : '3dias');
+  DAYS_VISIBLE = vistaSemana ? 5 : 3;
+  if(vistaSemana) currentStart = mondayOfWeek(currentStart);
+  renderCalendar();
+});
+
+/* ---- Resumen del mes ---- */
+const resumenOverlay = document.getElementById('resumenOverlay');
+let resMes = null;
+function statsDelMes(y, m){
+  const total = new Date(y, m+1, 0).getDate();
+  const hoyISO = toISODate(new Date());
+  const t = { dadas:0, cobradas:0, deben:0, porDar:0 }, per = {};
+  for(let d=1; d<=total; d++){
+    const date = new Date(y, m, d), iso = toISODate(date);
+    eventsForDate(date).filter(e=> e.type !== 'personal').forEach(e=>{
+      const al = e.alumnoId ? alumnoById(e.alumnoId) : null;
+      const key = al ? al.id : 'n_'+e.title;
+      const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, deben:0, porDar:0 });
+      if(iso < hoyISO){
+        t.dadas++; p.dadas++;
+        if(getRegistro(e.id, iso).paid === false){ t.deben++; p.deben++; } else t.cobradas++;
+      } else { t.porDar++; p.porDar++; }
+    });
+  }
+  return { t, lista: Object.values(per).sort((a,b)=> (b.dadas+b.porDar) - (a.dadas+a.porDar) || a.nombre.localeCompare(b.nombre,'es')) };
+}
+function renderResumen(){
+  const y = resMes.getFullYear(), m = resMes.getMonth();
+  const mesTxt = resMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+  document.getElementById('resMes').textContent = mesTxt.charAt(0).toUpperCase() + mesTxt.slice(1);
+  const { t, lista } = statsDelMes(y, m);
+  const body = document.getElementById('resBody');
+  body.innerHTML = `<div class="res-tiles">
+    <div class="res-tile t-dadas"><b>${t.dadas}</b><span>Clases dadas</span></div>
+    <div class="res-tile t-cob"><b>${t.cobradas}</b><span>Cobradas</span></div>
+    <div class="res-tile t-debe"><b>${t.deben}</b><span>Por cobrar</span></div>
+    <div class="res-tile t-dar"><b>${t.porDar}</b><span>Por dar</span></div></div>`;
+  if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases este mes.</div>'; return; }
+  const head = document.createElement('div');
+  head.className = 'res-row head';
+  head.innerHTML = '<div>Alumno</div><div>Dadas</div><div>Debe</div><div>Por dar</div>';
+  body.appendChild(head);
+  lista.forEach(p=>{
+    const r = document.createElement('div');
+    r.className = 'res-row';
+    r.innerHTML = `<div>${escapeHtml(p.nombre)}</div><div>${p.dadas}</div><div class="${p.deben?'debe':''}">${p.deben}</div><div>${p.porDar}</div>`;
+    if(p.id) r.addEventListener('click', ()=> openAlumno(p.id));
+    body.appendChild(r);
+  });
+}
+document.getElementById('menuResumenBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  const h = new Date(); resMes = new Date(h.getFullYear(), h.getMonth(), 1);
+  renderResumen();
+  resumenOverlay.classList.add('open');
+});
+document.getElementById('resPrev').addEventListener('click', ()=>{ resMes = new Date(resMes.getFullYear(), resMes.getMonth()-1, 1); renderResumen(); });
+document.getElementById('resNext').addEventListener('click', ()=>{ resMes = new Date(resMes.getFullYear(), resMes.getMonth()+1, 1); renderResumen(); });
+document.getElementById('closeResumenBtn').addEventListener('click', ()=> resumenOverlay.classList.remove('open'));
+resumenOverlay.addEventListener('click', (e)=>{ if(e.target === resumenOverlay) resumenOverlay.classList.remove('open'); });
+
+/* ---- Instalar como app ---- */
+let installPrompt = null;
+const yaInstalada = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); installPrompt = e; });
+window.addEventListener('appinstalled', ()=>{ document.getElementById('menuInstalarBtn').classList.add('hidden'); });
+if(yaInstalada) document.getElementById('menuInstalarBtn').classList.add('hidden');
+document.getElementById('menuInstalarBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  if(installPrompt){ installPrompt.prompt(); installPrompt = null; return; }
+  alert('Para instalarla:\n\n• Android (Chrome / Samsung Internet): menú ⋮ → "Instalar app" o "Agregar a pantalla de inicio".\n• iPhone (Safari): botón Compartir → "Agregar a pantalla de inicio".');
+});
+if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+
 document.getElementById('menuBuscarBtn').addEventListener('click', ()=>{
   debtorsMenu.classList.add('hidden');
   openSearch();
@@ -2623,6 +2843,7 @@ function exportAllData(){
     agenda_alumnos: localStorage.getItem('agenda_alumnos') || '[]',
     agenda_distintos: localStorage.getItem('agenda_distintos') || '[]',
   };
+  marcarRespaldo();
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2632,6 +2853,7 @@ function exportAllData(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  renderAvisos();
 }
 document.getElementById('exportBtn').addEventListener('click', exportAllData);
 
@@ -2689,6 +2911,7 @@ function importFromText(text){
   alumnos = loadAlumnos();
   distintos = loadDistintos();
   ensureAlumnos();
+  marcarRespaldo();
   renderCalendar();
   showImportStatus(`Listo: se importaron ${eventos.length} eventos.`, true);
 }
@@ -2870,6 +3093,8 @@ function openAlumno(id, focus){
   document.getElementById('fa-tel').value = a ? (a.telefono||'') : '';
   setNivel(a ? (a.nivel||'') : '');
   document.getElementById('fa-notas').value = a ? (a.notas||'') : '';
+  document.getElementById('fa-examen').value = a ? (a.examen||'') : '';
+  document.getElementById('fa-examen-tema').value = a ? (a.examenTema||'') : '';
   document.getElementById('fa-merge-box').classList.add('hidden');
   renderFichaExtras();
   fichaOverlay.classList.add('open');
@@ -2951,6 +3176,8 @@ function renderFichaExtras(){
       row.innerHTML = `<div style="font-family:var(--font-num);">${formatDMY(o.date).slice(0,5)}</div>` +
         `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type==='recurrente'?'Agenda':'Extra'}</div>` +
         `<div>${reg ? (reg.paid === false ? '<span class="debe">debe</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
+      const nota = getRegistro(o.evt.id, o.date).nota;
+      if(nota){ const n = document.createElement('div'); n.className = 'ledger-nota'; n.textContent = nota; row.appendChild(n); }
       row.addEventListener('click', ()=>{
         currentStart = startOfDay(d);
         fichaOverlay.classList.remove('open'); alumnosOverlay.classList.remove('open');
@@ -2973,11 +3200,17 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
   a.telefono = document.getElementById('fa-tel').value.trim();
   a.nivel = document.getElementById('fa-nivel').value.trim();
   a.notas = document.getElementById('fa-notas').value.trim();
+  a.examen = document.getElementById('fa-examen').value || '';
+  a.examenTema = a.examen ? document.getElementById('fa-examen-tema').value.trim() : '';
   saveAlumnos();
   document.getElementById('fichaTitle').textContent = 'Ficha';
   renderFichaExtras();
   renderAlumnosList();
   renderCalendar();
+});
+document.getElementById('fa-examen-x').addEventListener('click', ()=>{
+  document.getElementById('fa-examen').value = '';
+  document.getElementById('fa-examen-tema').value = '';
 });
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
 document.getElementById('fa-wa').addEventListener('click', ()=>{
@@ -3017,6 +3250,7 @@ document.getElementById('fa-merge-ok').addEventListener('click', ()=>{
   events.forEach(e=>{ if(e.alumnoId === o.id){ e.alumnoId = a.id; e.title = a.nombre; } });
   if(!a.telefono) a.telefono = o.telefono || '';
   if(!a.nivel) a.nivel = o.nivel || '';
+  if(!a.examen && o.examen){ a.examen = o.examen; a.examenTema = o.examenTema || ''; }
   a.notas = [a.notas, o.notas].filter(Boolean).join('\n');
   alumnos = alumnos.filter(x=> x.id !== o.id);
   saveAlumnos();
