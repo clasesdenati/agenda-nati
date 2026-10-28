@@ -862,6 +862,15 @@ window.addEventListener('error', function(e){
   </div>
 </div>
 
+<!-- ============ MODAL: pruebas del día ============ -->
+<div class="overlay" id="pruebasOverlay">
+  <div class="modal">
+    <h2 id="pruebasTitulo">Pruebas</h2>
+    <div id="pruebasLista"></div>
+    <div class="modal-actions"><button class="btn-primary" id="closePruebasBtn">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- ============ MODAL: resumen del mes ============ -->
 <div class="overlay" id="resumenOverlay">
   <div class="modal">
@@ -1259,13 +1268,14 @@ function renderCalendar(){
       taskRow.appendChild(chip);
     });
     const isoD = toISODate(date);
-    alumnos.filter(a=> a.examen === isoD).forEach(a=>{
+    const conPrueba = alumnos.filter(a=> a.examen === isoD);
+    if(conPrueba.length){
       const chip = document.createElement('div');
       chip.className = 'task-chip prueba';
-      chip.textContent = '📝 ' + a.nombre;
-      chip.addEventListener('click', ()=> openAlumno(a.id));
+      chip.textContent = `📝 Pruebas (${conPrueba.length})`;
+      chip.addEventListener('click', ()=> openPruebas(isoD));
       taskRow.appendChild(chip);
-    });
+    }
     taskRow.addEventListener('click', (e)=>{
       if(e.target.closest('.task-chip')) return;
       openNewAt('personal', toISODate(date));
@@ -1450,21 +1460,6 @@ function renderAvisos(){
   const box = document.getElementById('avisos');
   if(!box) return;
   box.innerHTML = '';
-  const hoy = startOfDay(new Date());
-
-  // pruebas de los próximos 7 días
-  const proximas = alumnos.filter(a=> a.examen).map(a=>{
-    const d = new Date(a.examen+'T00:00:00');
-    return { a, d, dias: Math.round((d - hoy)/86400000) };
-  }).filter(x=> x.dias >= 0 && x.dias <= 7).sort((x,y)=> x.dias - y.dias).slice(0,3);
-  proximas.forEach(({a,d,dias})=>{
-    const cuando = dias === 0 ? 'hoy' : dias === 1 ? 'mañana' : `el ${DOW_SHORT[d.getDay()]} ${d.getDate()}`;
-    const row = document.createElement('div');
-    row.className = 'aviso prueba';
-    row.innerHTML = `<div class="txt">📝 <b>${escapeHtml(a.nombre)}</b> tiene prueba ${cuando}${a.examenTema ? ' · ' + escapeHtml(a.examenTema) : ''}</div>`;
-    row.addEventListener('click', ()=> openAlumno(a.id));
-    box.appendChild(row);
-  });
 
   // copia de seguridad
   if(events.length || alumnos.length){
@@ -2277,6 +2272,26 @@ document.getElementById('menuVistaBtn').addEventListener('click', ()=>{
   if(vistaSemana) currentStart = mondayOfWeek(currentStart);
   renderCalendar();
 });
+
+/* ---- Pruebas del día ---- */
+const pruebasOverlay = document.getElementById('pruebasOverlay');
+function openPruebas(iso){
+  const d = new Date(iso+'T00:00:00');
+  document.getElementById('pruebasTitulo').textContent = `Pruebas · ${DOW_SHORT[d.getDay()]} ${formatDMY(iso).slice(0,5)}`;
+  const lista = document.getElementById('pruebasLista');
+  lista.innerHTML = '';
+  alumnos.filter(a=> a.examen === iso).sort((x,y)=> x.nombre.localeCompare(y.nombre,'es')).forEach(a=>{
+    const r = document.createElement('div');
+    r.className = 'res-row';
+    r.style.gridTemplateColumns = '1fr';
+    r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);">${escapeHtml(a.nombre)}${a.examenTema ? ` <span style="color:var(--ink-soft);font-size:0.78rem;">· ${escapeHtml(a.examenTema)}</span>` : ''}</div>`;
+    r.addEventListener('click', ()=>{ pruebasOverlay.classList.remove('open'); openAlumno(a.id); });
+    lista.appendChild(r);
+  });
+  pruebasOverlay.classList.add('open');
+}
+document.getElementById('closePruebasBtn').addEventListener('click', ()=> pruebasOverlay.classList.remove('open'));
+pruebasOverlay.addEventListener('click', (e)=>{ if(e.target === pruebasOverlay) pruebasOverlay.classList.remove('open'); });
 
 /* ---- Resumen del mes ---- */
 const resumenOverlay = document.getElementById('resumenOverlay');
