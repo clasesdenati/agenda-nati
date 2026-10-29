@@ -494,6 +494,37 @@
   }
   .hidden{ display:none !important; }
 
+  /* franjas del día: Mañana | Tarde | Día */
+  @media (max-width:420px){
+    .week-nav{ gap:3px; }
+    .week-nav .franja-row button, .week-nav .today-btn{ padding:0 6px; }
+  }
+  @media (max-width:340px){
+    .week-nav{ gap:2px; font-size:0.56rem; }
+    .week-nav button{ width:20px; height:22px; }
+    .week-nav .franja-row button, .week-nav .today-btn{ padding:0 4px; height:22px; font-size:0.68rem; }
+  }
+  .franja-row{ display:contents; }
+  .week-nav .franja-row button{ width:auto; height:26px; padding:0 8px; border-radius:20px; font-family:var(--font-ui); font-size:0.76rem; }
+  .week-nav .franja-row button.active{ background:var(--brand); border-color:var(--brand); color:#fff; }
+
+  .day-head{ cursor:pointer; }
+  .day-head.sin-clase .dnum{ text-decoration:line-through; color:var(--ink-soft); }
+  .event-block.cancelada{ opacity:.5; }
+  .event-block.cancelada .ev-title{ text-decoration:line-through; }
+
+  /* recordatorios */
+  .rec-row{ display:flex; align-items:center; gap:10px; padding:8px 2px; border-bottom:1px solid var(--line); }
+  .rec-check{ width:26px; height:26px; flex:none; border-radius:50%; border:1.5px solid var(--line-strong); background:#fff; color:#fff; font-size:0.95rem; line-height:1; cursor:pointer; padding:0; }
+  .rec-check.on{ background:#2A9D8F; border-color:#2A9D8F; }
+  .rec-info{ flex:1; min-width:0; font-size:0.9rem; }
+  .rec-info small{ display:block; color:var(--ink-soft); font-family:var(--font-num); font-size:0.74rem; }
+  .rec-wa{ flex:none; border:1.5px solid var(--brand); background:none; color:var(--brand); border-radius:16px; padding:6px 12px; font-family:var(--font-ui); font-size:0.8rem; cursor:pointer; }
+  .rec-wa.hecho{ border-color:var(--line-strong); color:var(--ink-soft); }
+  .cancel-box{ margin-top:14px; padding:12px; border-radius:10px; background:#fbe3e3; color:#8a2f2f; font-size:0.86rem; }
+  .cancel-box .row{ display:flex; gap:8px; margin-top:10px; }
+  .cancel-box .row button{ flex:1; padding:9px 6px; border-radius:8px; border:1.5px solid #C94C4C; background:#fff; color:#8a2f2f; font-family:var(--font-ui); font-size:0.82rem; cursor:pointer; }
+
   /* avisos (copia de seguridad, pruebas) */
   #avisos{ padding:0 12px; display:flex; flex-direction:column; gap:6px; }
   #avisos:not(:empty){ padding-bottom:8px; }
@@ -629,6 +660,11 @@ window.addEventListener('error', function(e){
       <span id="weekLabel">—</span>
       <button id="nextWeek" aria-label="Días siguientes">›</button>
       <button class="today-btn" id="todayBtn">Hoy</button>
+      <div class="franja-row" id="franjaRow">
+        <button type="button" data-f="manana" aria-label="Mañana, de 8 a 14">8hs</button>
+        <button type="button" data-f="tarde" aria-label="Tarde, de 14 a 18">14hs</button>
+        <button type="button" data-f="dia" aria-label="Día completo">Día</button>
+      </div>
     </div>
   </div>
   <div class="action-row">
@@ -640,6 +676,7 @@ window.addEventListener('error', function(e){
         <button id="menuBuscarBtn">Buscar</button>
         <button id="menuDebenBtn">Deben</button>
         <button id="waitlistBtn">Espera</button>
+        <button id="menuRecordatoriosBtn">Recordatorios</button>
         <button id="menuResumenBtn">Resumen</button>
         <button id="menuVistaBtn">Ver semana</button>
         <button id="menuInstalarBtn">Instalar app</button>
@@ -762,6 +799,15 @@ window.addEventListener('error', function(e){
     <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Enviar deberes</button>
     <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
 
+    <div class="cancel-box hidden" id="cancelBox">
+      <b>Clase cancelada</b>
+      <div class="row"><button type="button" id="cancelAvisarBtn">Avisar por WhatsApp</button><button type="button" id="cancelReactivarBtn">Reactivar clase</button></div>
+    </div>
+    <div class="field hidden" id="cancelField" style="margin-top:14px;">
+      <button class="btn-ghost" id="cancelarClaseBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">✕ Cancelar esta clase</button>
+      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Solo ese día. Después podés avisarle por WhatsApp.</div>
+    </div>
+
     <div class="field" id="duplicateField" style="margin-top:14px;">
       <button class="btn-ghost" id="duplicateBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">⧉ Duplicar</button>
       <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Abre una copia para cambiarle el nombre o la fecha.</div>
@@ -858,6 +904,40 @@ window.addEventListener('error', function(e){
       <button class="btn-ghost hidden" id="fa-delete">Eliminar ficha</button>
       <button class="btn-ghost" id="fa-close">Cerrar</button>
       <button class="btn-primary" id="fa-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: recordatorios ============ -->
+<div class="overlay" id="recOverlay">
+  <div class="modal">
+    <h2>Recordatorios</h2>
+    <div class="res-nav"><button id="recPrev" aria-label="Día anterior">‹</button><span id="recFecha"></span><button id="recNext" aria-label="Día siguiente">›</button></div>
+    <div id="recResumen" style="text-align:center;font-size:0.8rem;color:var(--ink-soft);margin-bottom:6px;"></div>
+    <div id="recLista"></div>
+    <div id="recNota" style="font-size:0.72rem;color:var(--ink-soft);margin-top:10px;">Si el alumno no tiene teléfono en su ficha, WhatsApp te deja elegir el contacto.</div>
+    <div class="modal-actions"><button class="btn-primary" id="closeRecBtn">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: día (sin clase / recordatorios) ============ -->
+<div class="overlay" id="diaOverlay">
+  <div class="modal">
+    <h2 id="diaTitulo">Día</h2>
+    <button class="btn-ghost" id="diaBloqueoBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:8px;"></button>
+    <button class="btn-ghost" id="diaRecBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">Enviar recordatorios de este día</button>
+    <div class="modal-actions"><button class="btn-primary" id="closeDiaBtn">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: tareas del día ============ -->
+<div class="overlay" id="tareasOverlay">
+  <div class="modal">
+    <h2 id="tareasTitulo">Tareas</h2>
+    <div id="tareasLista"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="tareasNuevaBtn">+ Nueva tarea</button>
+      <button class="btn-primary" id="closeTareasBtn">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1008,8 +1088,26 @@ window.addEventListener('error', function(e){
    muestran apilados uno arriba del otro (no en columnas).
    ============================================================ */
 
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR   = 18;
+const DIA_INI = 8, DIA_FIN = 18;                 // rango completo de la agenda
+let DAY_START_HOUR = DIA_INI, DAY_END_HOUR = DIA_FIN;   // rango que se está viendo (Mañana / Tarde / Día)
+const FRANJAS = { manana:[8,14], tarde:[14,18], dia:[8,18] };
+let franja = new Date().getHours() < 14 ? 'manana' : 'tarde';
+DAY_START_HOUR = FRANJAS[franja][0]; DAY_END_HOUR = FRANJAS[franja][1];
+// si estás viendo Mañana y la clase es de tarde (o al revés), pasa a la franja que corresponde; "Día" no se toca
+function ajustarFranja(startTime){
+  if(franja === 'dia' || !startTime) return;
+  franja = minutesOf(startTime) < 14*60 ? 'manana' : 'tarde';
+  DAY_START_HOUR = FRANJAS[franja][0]; DAY_END_HOUR = FRANJAS[franja][1];
+}
+function irAFecha(d){
+  d = startOfDay(d);
+  currentStart = (vistaSemana && mondayIndex(d) < 5) ? addDays(d, -mondayIndex(d)) : d;
+}
+function setFranja(f){
+  franja = f;
+  DAY_START_HOUR = FRANJAS[f][0]; DAY_END_HOUR = FRANJAS[f][1];
+  renderCalendar();
+}
 let vistaSemana = false;
 try{ vistaSemana = localStorage.getItem('agenda_vista') === 'semana'; }catch(e){}
 let DAYS_VISIBLE = vistaSemana ? 5 : 3;
@@ -1236,6 +1334,7 @@ function renderCalendar(){
   cal.classList.toggle('semana', vistaSemana);
   cal.style.gridTemplateColumns = vistaSemana ? '34px repeat(5, minmax(0, 1fr))' : '';
   document.getElementById('menuVistaBtn').textContent = vistaSemana ? 'Ver 3 días' : 'Ver semana';
+  document.querySelectorAll('#franjaRow button').forEach(b=> b.classList.toggle('active', b.dataset.f === franja));
 
   const corner = document.createElement('div');
   corner.className = 'corner';
@@ -1247,8 +1346,9 @@ function renderCalendar(){
     const d = addDays(currentStart, i);
     visibleDates.push(d);
     const head = document.createElement('div');
-    head.className = 'day-head' + (sameDate(d, today) ? ' is-today' : '');
+    head.className = 'day-head' + (sameDate(d, today) ? ' is-today' : '') + (isDayBlocked(toISODate(d)) ? ' sin-clase' : '');
     head.innerHTML = `<div class="dname">${DOW_SHORT[d.getDay()]}</div><div class="dnum">${d.getDate()}</div>`;
+    head.addEventListener('click', ()=> openDia(toISODate(d)));
     cal.appendChild(head);
   }
 
@@ -1260,13 +1360,14 @@ function renderCalendar(){
   visibleDates.forEach(date=>{
     const taskRow = document.createElement('div');
     taskRow.className = 'task-row';
-    eventsForDate(date).filter(e=>e.type==='personal').forEach(evt=>{
+    const tareasDia = eventsForDate(date).filter(e=>e.type==='personal');
+    if(tareasDia.length){
       const chip = document.createElement('div');
       chip.className = 'task-chip';
-      chip.textContent = evt.title;
-      chip.addEventListener('click', ()=> openDetail(evt.id, toISODate(date)));
+      chip.textContent = `📍 Tareas (${tareasDia.length})`;
+      chip.addEventListener('click', ()=> openTareas(toISODate(date)));
       taskRow.appendChild(chip);
-    });
+    }
     const isoD = toISODate(date);
     const conPrueba = alumnos.filter(a=> a.examen === isoD);
     if(conPrueba.length){
@@ -1318,7 +1419,7 @@ function renderCalendar(){
     });
     drawClassBreaks(col);
     drawBlockedSlots(col, toISODate(date));
-    laidOut.forEach(item=> col.appendChild(renderEventBlock(item, pxPerMin, toISODate(date))));
+    laidOut.forEach(item=>{ const blk = renderEventBlock(item, pxPerMin, toISODate(date)); if(blk) col.appendChild(blk); });
 
     if(sameDate(date, today)){
       col.dataset.today = '1';
@@ -1348,11 +1449,11 @@ function drawClassBreaks(col){
   const dayStart = DAY_START_HOUR*60, dayEnd = DAY_END_HOUR*60;
   const cutsDone = new Set();
   refs.forEach((start, i)=>{
-    if(start < dayStart || start >= dayEnd) return;
+    if(start + 60 <= dayStart || start >= dayEnd) return;
     if(CAMBIO_CLASE_MODO === 'lineas'){
       // inicio y fin (1 hora) de cada clase; si coinciden, una sola línea
       [start, start+60].forEach(m=>{
-        if(m > dayEnd || cutsDone.has(m)) return;
+        if(m < dayStart || m > dayEnd || cutsDone.has(m)) return;
         cutsDone.add(m);
         const cut = document.createElement('div');
         cut.className = 'class-cut';
@@ -1375,11 +1476,12 @@ function drawBlockedSlots(col, dateISO){
   bloqueos.forEach(k=>{
     const [d, t] = k.split('|');
     if(d !== dateISO) return;
-    const start = minutesOf(t);
-    if(start < dayStart || start >= dayEnd) return;
-    const end = Math.min(start + 60, dayEnd);
     const band = document.createElement('div');
     band.className = 'block-band';
+    if(t === '*'){ band.style.top = '0'; band.style.height = '100%'; col.appendChild(band); return; }   // día completo
+    const start = Math.max(minutesOf(t), dayStart);
+    const end = Math.min(minutesOf(t) + 60, dayEnd);
+    if(end <= start) return;
     band.style.top = pctOfDay(start) + '%';
     band.style.height = (pctOfDay(end) - pctOfDay(start)) + '%';
     col.appendChild(band);
@@ -1422,8 +1524,11 @@ setInterval(updateNowLine, 60000);
 function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
   const el = document.createElement('div');
   el.className = 'event-block type-'+evt.type + (colCount>1 ? ' stacked' : '');
-  const startMin = minutesOf(evt.startTime) - DAY_START_HOUR*60;
-  const endMin = minutesOf(evt.endTime) - DAY_START_HOUR*60;
+  const totalMin = (DAY_END_HOUR - DAY_START_HOUR)*60;
+  const startMin = Math.max(minutesOf(evt.startTime) - DAY_START_HOUR*60, 0);
+  const endMin = Math.min(minutesOf(evt.endTime) - DAY_START_HOUR*60, totalMin);
+  if(endMin <= startMin) return null;                  // fuera de la franja que se está viendo
+  if(getRegistro(evt.id, dateISO).cancelada) el.classList.add('cancelada');
   const ownTop = startMin*pxPerMin;
   const ownHeight = Math.max((endMin-startMin)*pxPerMin, 14);
 
@@ -1770,8 +1875,8 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     startTime = getStartTime();
     endTime = getEndTime();
     if(endTime <= startTime){ alert('La hora de fin tiene que ser después de la hora de inicio.'); return; }
-    if(minutesOf(startTime) < DAY_START_HOUR*60 || minutesOf(endTime) > DAY_END_HOUR*60){
-      alert(`El horario tiene que estar entre las ${pad2(DAY_START_HOUR)}:00 y las ${pad2(DAY_END_HOUR)}:00, que es el rango que se ve en la agenda.`);
+    if(minutesOf(startTime) < DIA_INI*60 || minutesOf(endTime) > DIA_FIN*60){
+      alert(`El horario tiene que estar entre las ${pad2(DIA_INI)}:00 y las ${pad2(DIA_FIN)}:00, que es el rango que se ve en la agenda.`);
       return;
     }
   }
@@ -1866,7 +1971,8 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   editOverlay.classList.remove('open');
   if(isNew){
     // ir al primer día en que quedó agendado y destacarlo un momento
-    currentStart = startOfDay(repDate);
+    irAFecha(repDate);
+    if(currentType !== 'personal') ajustarFranja(startTime);
     renderCalendar();
     const dISO = toISODate(repDate);
     document.querySelectorAll('.event-block').forEach(el=>{
@@ -1876,7 +1982,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     renderCalendar();
   }
   // alumno que todavía no estaba en la lista: ir a completar su ficha
-  if(alumnoPlan && alumnoPlan.mode === 'new') openAlumno(base.alumnoId, { evtId: base.id, date: toISODate(repDate) });
+  if(alumnoPlan && alumnoPlan.mode === 'new') openAlumno(base.alumnoId, { evtId: base.id, date: toISODate(repDate), primera: true });
 });
 
 /* ---------------- Modal: detalle ---------------- */
@@ -1936,6 +2042,14 @@ function openDetail(id, dateISO){
     setRegistro(id, dateISO, reg); // queda guardado aunque no toques el checkbox
   }
 
+  // clase cancelada: se esconden los botones de aviso y aparece "Reactivar"
+  const cancelada = isClass && !!getRegistro(id, dateISO).cancelada;
+  if(cancelada){
+    ['shareBtn','deberesBtn','reservaBtn','shareHint','attendanceSection'].forEach(i=> document.getElementById(i).classList.add('hidden'));
+  }
+  document.getElementById('cancelBox').classList.toggle('hidden', !cancelada);
+  document.getElementById('cancelField').classList.toggle('hidden', !isClass || cancelada);
+
   // se resetea cualquier confirmación de borrado que haya quedado abierta
   document.getElementById('deleteConfirmBox').classList.add('hidden');
 
@@ -1952,6 +2066,29 @@ document.getElementById('d-paid').addEventListener('change', (e)=>{
   if(!detailId || !detailDate) return;
   const reg = getRegistro(detailId, detailDate);
   setRegistro(detailId, detailDate, { ...reg, paid: e.target.checked });
+});
+
+function buildCancelMessage(evt, dateISO){
+  return `Hola! Te aviso que la clase ${dayPhrase(dateISO)}, a las ${evt.startTime}hs, no la puedo realizar. A la brevedad me comunico para coordinar un nuevo horario.\n\nSaludos!`;
+}
+document.getElementById('cancelarClaseBtn').addEventListener('click', ()=>{
+  if(!detailId || !detailDate) return;
+  setRegistro(detailId, detailDate, { ...getRegistro(detailId, detailDate), cancelada:true, paid:true });
+  renderCalendar();
+  openDetail(detailId, detailDate);
+});
+document.getElementById('cancelReactivarBtn').addEventListener('click', ()=>{
+  if(!detailId || !detailDate) return;
+  const reg = { ...getRegistro(detailId, detailDate) }; delete reg.cancelada;
+  setRegistro(detailId, detailDate, reg);
+  renderCalendar();
+  openDetail(detailId, detailDate);
+});
+document.getElementById('cancelAvisarBtn').addEventListener('click', ()=>{
+  const evt = events.find(e=>e.id===detailId);
+  if(!evt) return;
+  window.open(waUrl(evt, buildCancelMessage(evt, detailDate)), '_blank');
+  detailOverlay.classList.remove('open');
 });
 
 document.getElementById('d-nota').addEventListener('input', (e)=>{
@@ -2238,7 +2375,8 @@ function renderSearch(){
     row.className = 'search-result';
     row.innerHTML = `<span style="font-weight:600;">${escapeHtml(e.title)}</span><span class="sr-meta">${escapeHtml(meta)}</span>`;
     row.addEventListener('click', ()=>{
-      currentStart = startOfDay(new Date(date+'T00:00:00'));
+      irAFecha(new Date(date+'T00:00:00'));
+      if(e.type !== 'personal') ajustarFranja(e.startTime);
       searchOverlay.classList.remove('open');
       renderCalendar();
     });
@@ -2273,6 +2411,99 @@ document.getElementById('menuVistaBtn').addEventListener('click', ()=>{
   renderCalendar();
 });
 
+/* ---- Recordatorios (avisar de la clase del día siguiente) ---- */
+const recOverlay = document.getElementById('recOverlay');
+let recFecha = null;   // 'YYYY-MM-DD'
+function renderRecordatorios(){
+  const d = new Date(recFecha+'T00:00:00');
+  const hoyISO = toISODate(new Date()), manISO = toISODate(addDays(new Date(),1));
+  const etiqueta = recFecha === hoyISO ? 'hoy' : recFecha === manISO ? 'mañana' : '';
+  document.getElementById('recFecha').textContent = `${DOW_SHORT[d.getDay()]} ${formatDMY(recFecha).slice(0,5)}${etiqueta ? ' · ' + etiqueta : ''}`;
+  const lista = document.getElementById('recLista');
+  lista.innerHTML = '';
+  const clases = eventsForDate(d).filter(e=> e.type !== 'personal' && !getRegistro(e.id, recFecha).cancelada)
+    .sort((a,b)=> a.startTime.localeCompare(b.startTime) || a.title.localeCompare(b.title,'es'));
+  const resumen = document.getElementById('recResumen');
+  if(isDayBlocked(recFecha) && !clases.length){ resumen.textContent = ''; lista.innerHTML = '<div style="color:var(--ink-soft);font-size:0.88rem;padding:10px 0;">Día sin clase.</div>'; return; }
+  if(!clases.length){ resumen.textContent = ''; lista.innerHTML = '<div style="color:var(--ink-soft);font-size:0.88rem;padding:10px 0;">No hay clases este día.</div>'; return; }
+  const avisados = clases.filter(e=> getRegistro(e.id, recFecha).avisado).length;
+  resumen.textContent = `Avisados ${avisados} de ${clases.length}`;
+  clases.forEach(e=>{
+    const reg = getRegistro(e.id, recFecha);
+    const row = document.createElement('div');
+    row.className = 'rec-row';
+    row.innerHTML = `<button type="button" class="rec-check${reg.avisado?' on':''}" aria-label="Marcar como avisado">${reg.avisado?'✓':''}</button>
+      <div class="rec-info">${escapeHtml(e.title)}<small>${e.startTime}</small></div>
+      <button type="button" class="rec-wa${reg.avisado?' hecho':''}">WhatsApp</button>`;
+    const setAvisado = (v)=>{
+      const r = { ...getRegistro(e.id, recFecha) };
+      if(v) r.avisado = true; else delete r.avisado;
+      setRegistro(e.id, recFecha, r);
+    };
+    row.querySelector('.rec-check').addEventListener('click', ()=>{ setAvisado(!getRegistro(e.id, recFecha).avisado); renderRecordatorios(); });
+    row.querySelector('.rec-wa').addEventListener('click', ()=>{
+      setAvisado(true);
+      window.open(waUrl(e, buildWhatsAppMessage(e, recFecha)), '_blank');
+      renderRecordatorios();
+    });
+    lista.appendChild(row);
+  });
+}
+function openRecordatorios(iso){
+  recFecha = iso || toISODate(addDays(new Date(), 1));
+  renderRecordatorios();
+  recOverlay.classList.add('open');
+}
+document.getElementById('menuRecordatoriosBtn').addEventListener('click', ()=>{ debtorsMenu.classList.add('hidden'); openRecordatorios(); });
+document.getElementById('recPrev').addEventListener('click', ()=>{ recFecha = toISODate(addDays(new Date(recFecha+'T00:00:00'), -1)); renderRecordatorios(); });
+document.getElementById('recNext').addEventListener('click', ()=>{ recFecha = toISODate(addDays(new Date(recFecha+'T00:00:00'), 1)); renderRecordatorios(); });
+document.getElementById('closeRecBtn').addEventListener('click', ()=> recOverlay.classList.remove('open'));
+recOverlay.addEventListener('click', (e)=>{ if(e.target === recOverlay) recOverlay.classList.remove('open'); });
+
+/* ---- Tocar un día: sin clase / recordatorios ---- */
+const diaOverlay = document.getElementById('diaOverlay');
+let diaFecha = null;
+function openDia(iso){
+  diaFecha = iso;
+  const d = new Date(iso+'T00:00:00');
+  document.getElementById('diaTitulo').textContent = `${DAY_NAMES_FULL[mondayIndex(d)]} ${formatDMY(iso).slice(0,5)}`.replace(/^./, c=>c.toUpperCase());
+  document.getElementById('diaBloqueoBtn').textContent = isDayBlocked(iso) ? 'Quitar "día sin clase"' : 'Marcar día sin clase';
+  diaOverlay.classList.add('open');
+}
+document.getElementById('diaBloqueoBtn').addEventListener('click', ()=>{
+  toggleDayBlock(diaFecha);
+  diaOverlay.classList.remove('open');
+  renderCalendar();
+});
+document.getElementById('diaRecBtn').addEventListener('click', ()=>{ diaOverlay.classList.remove('open'); openRecordatorios(diaFecha); });
+document.getElementById('closeDiaBtn').addEventListener('click', ()=> diaOverlay.classList.remove('open'));
+diaOverlay.addEventListener('click', (e)=>{ if(e.target === diaOverlay) diaOverlay.classList.remove('open'); });
+
+document.querySelectorAll('#franjaRow button').forEach(b=> b.addEventListener('click', ()=> setFranja(b.dataset.f)));
+
+/* ---- Tareas del día ---- */
+const tareasOverlay = document.getElementById('tareasOverlay');
+let tareasFecha = null;
+function openTareas(iso){
+  tareasFecha = iso;
+  const d = new Date(iso+'T00:00:00');
+  document.getElementById('tareasTitulo').textContent = `Tareas · ${DOW_SHORT[d.getDay()]} ${formatDMY(iso).slice(0,5)}`;
+  const lista = document.getElementById('tareasLista');
+  lista.innerHTML = '';
+  eventsForDate(d).filter(e=> e.type === 'personal').forEach(e=>{
+    const r = document.createElement('div');
+    r.className = 'res-row';
+    r.style.gridTemplateColumns = '1fr';
+    r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);white-space:pre-line;">${escapeHtml(e.title)}</div>`;
+    r.addEventListener('click', ()=>{ tareasOverlay.classList.remove('open'); openDetail(e.id, iso); });
+    lista.appendChild(r);
+  });
+  tareasOverlay.classList.add('open');
+}
+document.getElementById('closeTareasBtn').addEventListener('click', ()=> tareasOverlay.classList.remove('open'));
+document.getElementById('tareasNuevaBtn').addEventListener('click', ()=>{ tareasOverlay.classList.remove('open'); openNewAt('personal', tareasFecha); });
+tareasOverlay.addEventListener('click', (e)=>{ if(e.target === tareasOverlay) tareasOverlay.classList.remove('open'); });
+
 /* ---- Pruebas del día ---- */
 const pruebasOverlay = document.getElementById('pruebasOverlay');
 function openPruebas(iso){
@@ -2299,10 +2530,11 @@ let resMes = null;
 function statsDelMes(y, m){
   const total = new Date(y, m+1, 0).getDate();
   const hoyISO = toISODate(new Date());
-  const t = { dadas:0, cobradas:0, deben:0, porDar:0 }, per = {};
+  const t = { dadas:0, cobradas:0, deben:0, porDar:0, canceladas:0 }, per = {};
   for(let d=1; d<=total; d++){
     const date = new Date(y, m, d), iso = toISODate(date);
     eventsForDate(date).filter(e=> e.type !== 'personal').forEach(e=>{
+      if(getRegistro(e.id, iso).cancelada){ t.canceladas++; return; }
       const al = e.alumnoId ? alumnoById(e.alumnoId) : null;
       const key = al ? al.id : 'n_'+e.title;
       const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, deben:0, porDar:0 });
@@ -2324,7 +2556,8 @@ function renderResumen(){
     <div class="res-tile t-dadas"><b>${t.dadas}</b><span>Clases dadas</span></div>
     <div class="res-tile t-cob"><b>${t.cobradas}</b><span>Cobradas</span></div>
     <div class="res-tile t-debe"><b>${t.deben}</b><span>Por cobrar</span></div>
-    <div class="res-tile t-dar"><b>${t.porDar}</b><span>Por dar</span></div></div>`;
+    <div class="res-tile t-dar"><b>${t.porDar}</b><span>Por dar</span></div></div>` +
+    (t.canceladas ? `<div style="font-size:0.78rem;color:var(--ink-soft);margin:-6px 0 12px;">Canceladas este mes: ${t.canceladas}</div>` : '');
   if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases este mes.</div>'; return; }
   const head = document.createElement('div');
   head.className = 'res-row head';
@@ -2425,7 +2658,13 @@ function loadBloqueos(){
 }
 function saveBloqueos(){ localStorage.setItem('agenda_bloqueos', JSON.stringify(bloqueos)); }
 let bloqueos = loadBloqueos();
-function isBlocked(dateISO, time){ return bloqueos.includes(dateISO+'|'+time); }
+function isBlocked(dateISO, time){ return bloqueos.includes(dateISO+'|'+time) || bloqueos.includes(dateISO+'|*'); }
+function isDayBlocked(dateISO){ return bloqueos.includes(dateISO+'|*'); }
+function toggleDayBlock(dateISO){
+  const k = dateISO+'|*';
+  bloqueos = bloqueos.includes(k) ? bloqueos.filter(x=>x!==k) : bloqueos.concat(k);
+  saveBloqueos();
+}
 function toggleBlock(dateISO, time){
   const k = dateISO+'|'+time;
   bloqueos = bloqueos.includes(k) ? bloqueos.filter(x=>x!==k) : bloqueos.concat(k);
@@ -2567,7 +2806,7 @@ function makeAvailabilityImage(done){
       const dISO = toISODate(d);
       const x = PAD + LAB + i*(colW+GAP);
       if(isBlocked(dISO, hr)) return;                      // desactivado: queda en blanco
-      const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr).length;
+      const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr && !getRegistro(e.id, dISO).cancelada).length;
       const free = Math.max(CUPO_REFERENCIA - count, 0);
       rr(x, y, colW, CH, 12);
       c.fillStyle = free > 0 ? '#d9f0ec' : '#f8d9cd'; c.fill();
@@ -2639,7 +2878,8 @@ function renderAvailability(){
   table.appendChild(document.createElement('div'));
   dates.forEach((d,i)=>{
     const h = document.createElement('div');
-    h.style.cssText = 'text-align:center;line-height:1.15;padding-bottom:2px;';
+    h.style.cssText = 'text-align:center;line-height:1.15;padding-bottom:2px;cursor:pointer;' + (isDayBlocked(toISODate(d)) ? 'opacity:.45;text-decoration:line-through;' : '');
+    h.addEventListener('click', ()=>{ toggleDayBlock(toISODate(d)); renderAvailability(); renderCalendar(); });
     const isToday = sameDate(d, today);
     h.innerHTML = `<div style="font-weight:700;${isToday?'color:var(--recurrente);':''}">${AVAIL_LETTERS[i]}</div>`+
                   `<div style="font-size:0.68rem;color:var(--ink-soft);font-family:var(--font-num);">${d.getDate()}</div>`;
@@ -2654,7 +2894,7 @@ function renderAvailability(){
     dates.forEach(d=>{
       const dISO = toISODate(d);
       const blocked = isBlocked(dISO, hr);
-      const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr).length;
+      const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr && !getRegistro(e.id, dISO).cancelada).length;
       const free = Math.max(CUPO_REFERENCIA - count, 0);
       const cell = document.createElement('div');
       cell.style.cssText = 'height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-family:var(--font-num);cursor:pointer;'+
@@ -2662,6 +2902,7 @@ function renderAvailability(){
                  : free > 0 ? 'background:#d9f0ec;color:#1d6f65;' : 'background:#f8d9cd;');
       cell.textContent = blocked ? '' : (free > 0 ? String(free) : '');
       cell.addEventListener('click', ()=>{
+        if(isDayBlocked(dISO)) return;                       // el día entero está sin clase: se cambia desde la letra del día
         toggleBlock(dISO, hr);
         renderAvailability();
         renderCalendar();
@@ -2673,7 +2914,7 @@ function renderAvailability(){
 
   const hint = document.createElement('div');
   hint.style.cssText = 'font-size:0.75rem;color:var(--ink-soft);margin-top:10px;';
-  hint.textContent = 'Tocá una casilla para desactivar ese día y horario (queda en blanco). Tocala de nuevo para activarlo.';
+  hint.textContent = 'Tocá una casilla para desactivar ese día y horario (queda en blanco). Tocá la letra del día para desactivar el día entero. Tocala de nuevo para activarlo.';
   list.appendChild(hint);
 }
 
@@ -3149,11 +3390,12 @@ function renderFichaExtras(){
   const occ = alumnoOccurrences(id);
   const todayISO = toISODate(new Date());
   const past = occ.filter(o=> o.date < todayISO), next = occ.filter(o=> o.date >= todayISO);
+  const pastDadas = past.filter(o=> !getRegistro(o.evt.id, o.date).cancelada);
   const debe = past.filter(o=> getRegistro(o.evt.id, o.date).paid === false).length;
   const horario = alumnoSchedule(id);
   resumen.innerHTML =
     (horario ? `<div><b>Horario fijo:</b> ${escapeHtml(horario)}</div>` : '') +
-    `<div><b>Clases dadas:</b> ${past.length}</div>` +
+    `<div><b>Clases dadas:</b> ${pastDadas.length}</div>` +
     (debe ? `<div style="color:#C94C4C;"><b>Debe:</b> ${debe} clase${debe===1?'':'s'}</div>` : `<div><b>Pagos:</b> al día</div>`);
 
   const sims = similarAlumnos(id);
@@ -3190,11 +3432,11 @@ function renderFichaExtras(){
       const row = document.createElement('div'); row.className = 'ledger-row';
       row.innerHTML = `<div style="font-family:var(--font-num);">${formatDMY(o.date).slice(0,5)}</div>` +
         `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type==='recurrente'?'Agenda':'Extra'}</div>` +
-        `<div>${reg ? (reg.paid === false ? '<span class="debe">debe</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
+        `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">debe</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
       const nota = getRegistro(o.evt.id, o.date).nota;
       if(nota){ const n = document.createElement('div'); n.className = 'ledger-nota'; n.textContent = nota; row.appendChild(n); }
       row.addEventListener('click', ()=>{
-        currentStart = startOfDay(d);
+        irAFecha(d); ajustarFranja(o.evt.startTime);
         fichaOverlay.classList.remove('open'); alumnosOverlay.classList.remove('open');
         renderCalendar();
       });
@@ -3222,6 +3464,21 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
   renderFichaExtras();
   renderAlumnosList();
   renderCalendar();
+  // ficha recién creada al agendar a un alumno nuevo: al guardar se cierra y muestra la clase agendada
+  if(fichaFocus && fichaFocus.primera){
+    const f = fichaFocus;
+    fichaFocus = { evtId:f.evtId, date:f.date };
+    fichaOverlay.classList.remove('open');
+    const ev = events.find(x=> x.id === f.evtId);
+    if(ev){
+      irAFecha(new Date(f.date+'T00:00:00'));
+      ajustarFranja(ev.startTime);
+      renderCalendar();
+      document.querySelectorAll('.event-block').forEach(el=>{
+        if(el.dataset.eid === f.evtId && el.dataset.date === f.date) el.classList.add('flash');
+      });
+    }
+  }
 });
 document.getElementById('fa-examen-x').addEventListener('click', ()=>{
   document.getElementById('fa-examen').value = '';
