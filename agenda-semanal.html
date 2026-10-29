@@ -2768,12 +2768,21 @@ function makeAvailabilityImage(done){
   if(!availWeekStart) availWeekStart = mondayOfWeek(currentStart);
   const horarios = referencia.horarios.slice().sort();
   if(horarios.length === 0) return;
-  const dates = [0,1,2,3,4].map(i=> addDays(availWeekStart, i));
+  // la imagen solo muestra los días que se ofrecen: sin los que ya pasaron ni los marcados "sin clase"
+  const hoy = startOfDay(new Date());
+  const todos = [0,1,2,3,4].map(i=> ({ i, d: addDays(availWeekStart, i) }));
+  let visibles = todos.filter(x=> x.d >= hoy && !isDayBlocked(toISODate(x.d)));
+  if(!visibles.length) visibles = todos;               // si no quedara ninguno, se muestra la semana completa
+  const dates = visibles.map(x=> x.d), idxs = visibles.map(x=> x.i);
+  const n = dates.length;
   const opts = {day:'numeric', month:'short'};
-  const rango = `${dates[0].toLocaleDateString('es-UY', opts)} – ${dates[4].toLocaleDateString('es-UY', opts)}`;
+  const rango = n === 1
+    ? dates[0].toLocaleDateString('es-UY', opts)
+    : `${dates[0].toLocaleDateString('es-UY', opts)} – ${dates[n-1].toLocaleDateString('es-UY', opts)}`;
 
-  const SC = 2, W = 720, PAD = 32, LAB = 112, GAP = 8, CH = 56;
-  const colW = (W - PAD*2 - LAB - GAP*4) / 5;
+  const SC = 2, PAD = 32, LAB = 112, GAP = 8, CH = 56;
+  const colW = 102;
+  const W = Math.max(480, PAD*2 + LAB + n*colW + (n-1)*GAP);
   const top = 150;                                   // alto del encabezado + letras de los días
   const H = top + 70 + horarios.length*(CH+GAP) + 70;
   const cv = document.createElement('canvas');
@@ -2794,7 +2803,7 @@ function makeAvailabilityImage(done){
   c.textAlign = 'center';
   dates.forEach((d,i)=>{
     const cx = PAD + LAB + i*(colW+GAP) + colW/2;
-    c.fillStyle = '#343A40'; c.font = `700 28px ${UI}`; c.fillText(AVAIL_LETTERS[i], cx, top+28);
+    c.fillStyle = '#343A40'; c.font = `700 28px ${UI}`; c.fillText(AVAIL_LETTERS[idxs[i]], cx, top+28);
     c.fillStyle = '#6c7279'; c.font = `18px ${MONO}`; c.fillText(String(d.getDate()), cx, top+54);
   });
 
@@ -2860,6 +2869,7 @@ function renderAvailability(){
   const list = document.getElementById('availabilityList');
   list.innerHTML = '';
   if(!availWeekStart) availWeekStart = mondayOfWeek(currentStart);
+  const hoyD = startOfDay(new Date());                 // los días que ya pasaron se ven, pero vacíos
   const dates = [0,1,2,3,4].map(i=> addDays(availWeekStart, i));
   const opts = {day:'numeric', month:'short'};
   document.getElementById('availWeekLabel').textContent =
@@ -2878,8 +2888,9 @@ function renderAvailability(){
   table.appendChild(document.createElement('div'));
   dates.forEach((d,i)=>{
     const h = document.createElement('div');
-    h.style.cssText = 'text-align:center;line-height:1.15;padding-bottom:2px;cursor:pointer;' + (isDayBlocked(toISODate(d)) ? 'opacity:.45;text-decoration:line-through;' : '');
-    h.addEventListener('click', ()=>{ toggleDayBlock(toISODate(d)); renderAvailability(); renderCalendar(); });
+    const pasado = d < hoyD;
+    h.style.cssText = 'text-align:center;line-height:1.15;padding-bottom:2px;' + (pasado ? 'opacity:.35;' : 'cursor:pointer;') + (isDayBlocked(toISODate(d)) ? 'opacity:.45;text-decoration:line-through;' : '');
+    if(!pasado) h.addEventListener('click', ()=>{ toggleDayBlock(toISODate(d)); renderAvailability(); renderCalendar(); });
     const isToday = sameDate(d, today);
     h.innerHTML = `<div style="font-weight:700;${isToday?'color:var(--recurrente);':''}">${AVAIL_LETTERS[i]}</div>`+
                   `<div style="font-size:0.68rem;color:var(--ink-soft);font-family:var(--font-num);">${d.getDate()}</div>`;
@@ -2893,7 +2904,8 @@ function renderAvailability(){
     table.appendChild(lab);
     dates.forEach(d=>{
       const dISO = toISODate(d);
-      const blocked = isBlocked(dISO, hr);
+      const pasado = d < hoyD;
+      const blocked = pasado || isBlocked(dISO, hr);
       const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr && !getRegistro(e.id, dISO).cancelada).length;
       const free = Math.max(CUPO_REFERENCIA - count, 0);
       const cell = document.createElement('div');
@@ -2902,7 +2914,7 @@ function renderAvailability(){
                  : free > 0 ? 'background:#d9f0ec;color:#1d6f65;' : 'background:#f8d9cd;');
       cell.textContent = blocked ? '' : (free > 0 ? String(free) : '');
       cell.addEventListener('click', ()=>{
-        if(isDayBlocked(dISO)) return;                       // el día entero está sin clase: se cambia desde la letra del día
+        if(pasado || isDayBlocked(dISO)) return;             // día pasado o día entero está sin clase: se cambia desde la letra del día
         toggleBlock(dISO, hr);
         renderAvailability();
         renderCalendar();
