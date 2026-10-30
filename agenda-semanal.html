@@ -3615,7 +3615,7 @@ document.getElementById('fa-examen-x').addEventListener('click', ()=>{
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
 // Resumen de clases como imagen con el formato de la ficha (del mes que se está viendo, o de todo)
 function fichaSecciones(id){
-  const occ = alumnoOccurrences(id);
+  const occ = alumnoOccurrences(id).filter(o=> !getRegistro(o.evt.id, o.date).cancelada);   // las canceladas no se listan
   const todayISO = toISODate(new Date());
   const past = occ.filter(o=> o.date < todayISO), next = occ.filter(o=> o.date >= todayISO);
   if(fichaVista === 'mes' && fichaMes){
@@ -3630,8 +3630,8 @@ function makeFichaImage(a, done){
   const secs = fichaSecciones(a.id);
   if(!secs.length){ done(null); return; }
   const todayISO = toISODate(new Date());
-  const SC = 2, W = 720, PAD = 28, C1 = 140, C3 = 130, RH = 54, SH = 40, HH = 46, TOP = 150;
-  const x0 = PAD, x1 = PAD + C1, x3 = W - PAD - C3, x4 = W - PAD;
+  const SC = 2, W = 720, PAD = 28, C1 = 170, RH = 54, SH = 40, HH = 46, TOP = 150;
+  const x0 = PAD, x1 = PAD + C1, x4 = W - PAD;
   const nRows = secs.reduce((n,x)=> n + x.rows.length, 0);
   const H = TOP + 12 + HH + secs.length*SH + nRows*RH + 36;
   const cv = document.createElement('canvas');
@@ -3660,8 +3660,8 @@ function makeFichaImage(a, done){
   hline(TOP, x0, x4, RED, 2); hline(TOP + 5, x0, x4, RED, 2);
   let y = TOP + 8;
   c.fillStyle = BLUE; c.font = `600 15px ${UI}`;
-  spaced('FECHA', x0 + 12, y + HH/2 + 5, 3); spaced('DETALLE', x1 + 14, y + HH/2 + 5, 3); spaced('PAGO', x3 + 14, y + HH/2 + 5, 3);
-  vline(x1, y, y + HH); vline(x3, y, y + HH);
+  spaced('FECHA', x0 + 12, y + HH/2 + 5, 3); spaced('DÍA Y HORA', x1 + 14, y + HH/2 + 5, 3);
+  vline(x1, y, y + HH);
   y += HH; hline(y, x0, x4, RED, 2.5);
 
   secs.forEach(sec=>{
@@ -3670,18 +3670,11 @@ function makeFichaImage(a, done){
     y += SH; hline(y, x0, x4, BLUEL, 1.5);
     sec.rows.forEach(o=>{
       const d = new Date(o.date + 'T00:00:00');
-      const reg = getRegistro(o.evt.id, o.date);
       const base = y + RH/2;
       c.fillStyle = INK; c.font = `22px ${MONO}`; c.fillText(formatDMY(o.date).slice(0,5), x0 + 12, base + 7);
       c.font = `24px ${UI}`;
-      c.fillStyle = reg.cancelada ? GREY : INK;
-      c.fillText(`${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type === 'recurrente' ? 'Regular' : 'Consulta'}`, x1 + 14, base + 8);
-      if(reg.cancelada){ c.fillStyle = GREY; c.font = `18px ${UI}`; c.fillText('cancel.', x3 + 14, base + 6); }
-      else if(o.date < todayISO){
-        if(reg.paid === false){ c.fillStyle = RED; c.font = `700 24px ${UI}`; c.fillText('debe', x3 + 14, base + 8); }
-        else { c.fillStyle = BLUE; c.font = `24px ${UI}`; c.fillText('pagó', x3 + 14, base + 8); }
-      }
-      vline(x1, y, y + RH); vline(x3, y, y + RH);
+      c.fillText(`${DOW_SHORT[d.getDay()]} · ${o.evt.startTime}`, x1 + 14, base + 8);
+      vline(x1, y, y + RH);
       y += RH; hline(y, x0, x4, BLUEL, 1.5);
     });
   });
