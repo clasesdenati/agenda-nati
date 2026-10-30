@@ -534,6 +534,7 @@
   .aviso .txt{ flex:1; min-width:0; }
   .aviso button{ border:1px solid var(--brand); background:none; color:var(--brand); border-radius:14px; padding:4px 10px; font-size:0.74rem; cursor:pointer; font-family:var(--font-ui); white-space:nowrap; }
   .aviso button.x{ border:none; color:var(--ink-soft); font-size:1.05rem; padding:0 6px; line-height:1; }
+  .task-chip.extra{ background:#eceef0; color:#4b5259; border-left-color:#9aa1a8; }
   .task-chip.prueba{ background:#fbe3e3; color:#8a2f2f; border-left-color:#C94C4C; }
 
   /* vista de semana (5 columnas) */
@@ -545,6 +546,11 @@
 
   /* nota de la clase */
   #d-nota{ width:100%; margin-top:10px; padding:9px 10px; border:1px solid var(--line-strong); border-radius:8px; font-family:var(--font-ui); font-size:0.88rem; background:#fdfcfa; resize:vertical; min-height:62px; }
+  .hist-ctrl{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .hist-pill{ border:1px solid var(--line-strong); background:#fff; color:var(--ink); border-radius:20px; padding:3px 11px; font-family:var(--font-ui); font-size:0.76rem; cursor:pointer; }
+  .hist-pill.active{ background:#203864; border-color:#203864; color:#fff; }
+  .hist-mes{ display:flex; align-items:center; gap:6px; margin-left:auto; font-size:0.82rem; color:#203864; font-weight:600; }
+  .hist-mes button{ width:26px; height:26px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; cursor:pointer; font-size:1rem; line-height:1; color:var(--ink); padding:0; }
   .ledger-nota{ grid-column:1 / -1; padding:0 6px 7px 68px; font-size:0.74rem; font-style:italic; color:var(--ink-soft); line-height:1.35; white-space:pre-line; }
   .ledger-row{ grid-template-rows:auto auto; }
   .ledger-row .ledger-nota{ border-left:none !important; }
@@ -661,7 +667,7 @@ window.addEventListener('error', function(e){
       <button id="nextWeek" aria-label="Días siguientes">›</button>
       <button class="today-btn" id="todayBtn">Hoy</button>
       <div class="franja-row" id="franjaRow">
-        <button type="button" data-f="manana" aria-label="Mañana, de 8 a 14">8hs</button>
+        <button type="button" data-f="manana" aria-label="Mañana, de 10 a 14">10hs</button>
         <button type="button" data-f="tarde" aria-label="Tarde, de 14 a 18">14hs</button>
         <button type="button" data-f="dia" aria-label="Día completo">Día</button>
       </div>
@@ -702,8 +708,8 @@ window.addEventListener('error', function(e){
     <h2 id="editModalTitle">Nuevo evento</h2>
 
     <div class="type-picker" id="typePicker">
-      <button data-t="recurrente" type="button">Agenda</button>
-      <button data-t="aislada" type="button">Extra</button>
+      <button data-t="recurrente" type="button">Regular</button>
+      <button data-t="aislada" type="button">Consulta</button>
       <button data-t="personal" type="button">Tareas</button>
     </div>
 
@@ -749,6 +755,7 @@ window.addEventListener('error', function(e){
       <div class="field">
         <label>Hora inicio</label>
         <select id="f-start-h"></select>
+        <button type="button" class="btn-ghost" id="otroHorarioBtn" style="padding:4px 0 0;font-size:0.74rem;color:var(--brand);text-decoration:underline;">Extra</button>
       </div>
       <div class="field">
         <label>Hora fin</label>
@@ -815,7 +822,7 @@ window.addEventListener('error', function(e){
 
     <div class="field hidden" id="rescheduleField" style="margin-top:14px;">
       <button class="btn-ghost" id="rescheduleBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">↔️ Cambiar este día</button>
-      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Se saca la clase normal ese día y te dejo un evento Extra para que pongas el nuevo horario o día. Las demás semanas siguen igual.</div>
+      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Se saca la clase normal ese día y te dejo un evento Consulta para que pongas el nuevo horario o día. Las demás semanas siguen igual.</div>
     </div>
 
     <div class="field hidden" id="deleteScopeField" style="margin-top:14px;">
@@ -927,6 +934,19 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost" id="diaBloqueoBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:8px;"></button>
     <button class="btn-ghost" id="diaRecBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">Enviar recordatorios de este día</button>
     <div class="modal-actions"><button class="btn-primary" id="closeDiaBtn">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: horarios extra ============ -->
+<div class="overlay" id="extraOverlay">
+  <div class="modal">
+    <h2 id="extraTitulo">Horarios extra</h2>
+    <div id="extraLista"></div>
+    <div id="extraNota" style="font-size:0.74rem;color:var(--ink-soft);margin-top:8px;">Acá van las clases que caen fuera del horario de la agenda (antes de las 10:00 o después de las 18:30).</div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="extraNuevaBtn">+ Agregar clase extra</button>
+      <button class="btn-primary" id="closeExtraBtn">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -1088,9 +1108,10 @@ window.addEventListener('error', function(e){
    muestran apilados uno arriba del otro (no en columnas).
    ============================================================ */
 
-const DIA_INI = 8, DIA_FIN = 18;                 // rango completo de la agenda
+const DIA_INI = 10, DIA_FIN = 18.5;             // rango que muestra la agenda (de 10:00 a 18:30)
+const VAL_INI = 7, VAL_FIN = 21;                // horas permitidas al guardar una clase (las de fuera del rango van en "Extra")
 let DAY_START_HOUR = DIA_INI, DAY_END_HOUR = DIA_FIN;   // rango que se está viendo (Mañana / Tarde / Día)
-const FRANJAS = { manana:[8,14], tarde:[14,18], dia:[8,18] };
+const FRANJAS = { manana:[10,14], tarde:[14,18.5], dia:[10,18.5] };
 let franja = new Date().getHours() < 14 ? 'manana' : 'tarde';
 DAY_START_HOUR = FRANJAS[franja][0]; DAY_END_HOUR = FRANJAS[franja][1];
 // si estás viendo Mañana y la clase es de tarde (o al revés), pasa a la franja que corresponde; "Día" no se toca
@@ -1120,7 +1141,7 @@ const DAY_NAMES_FULL = ['lunes','martes','miércoles','jueves','viernes','sábad
 let events = loadEvents();
 
 /* ---------------- Alumnos (fichas) ----------------
-   Cada clase (Agenda o Extra) queda vinculada a un alumno por alumnoId, no por
+   Cada clase (Regular o Consulta) queda vinculada a un alumno por alumnoId, no por
    el texto del nombre. Así "Lore" y "Lorena" son la misma persona solo si lo elegís. */
 function loadAlumnos(){
   try{
@@ -1377,6 +1398,14 @@ function renderCalendar(){
       chip.addEventListener('click', ()=> openPruebas(isoD));
       taskRow.appendChild(chip);
     }
+    const fuera = eventsForDate(date).filter(e=> e.type !== 'personal' && fueraDeAgenda(e));
+    if(fuera.length){
+      const chipX = document.createElement('div');
+      chipX.className = 'task-chip extra';
+      chipX.textContent = `⏰ Extra (${fuera.length})`;
+      chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
+      taskRow.appendChild(chipX);
+    }
     taskRow.addEventListener('click', (e)=>{
       if(e.target.closest('.task-chip')) return;
       openNewAt('personal', toISODate(date));
@@ -1389,6 +1418,7 @@ function renderCalendar(){
   for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
     const slot = document.createElement('div');
     slot.className = 'time-slot';
+    if(DAY_END_HOUR - h < 1) slot.style.flex = String(DAY_END_HOUR - h);   // última fila de media hora
     slot.textContent = String(h).padStart(2,'0')+':00';
     timeCol.appendChild(slot);
   }
@@ -1403,6 +1433,7 @@ function renderCalendar(){
     for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
       const line = document.createElement('div');
       line.className = 'hour-line';
+      if(DAY_END_HOUR - h < 1) line.style.flex = String(DAY_END_HOUR - h);
       col.appendChild(line);
     }
     cal.appendChild(col);
@@ -1714,6 +1745,7 @@ function openEditModal(existing, asCopy){
     document.getElementById('f-date').value = toISODate(new Date());
   }
 
+  document.getElementById('otroHorarioBtn').classList.remove('hidden');
   editOverlay.classList.add('open');
   updateNameLink();
 }
@@ -1728,8 +1760,21 @@ function nearestReferenceTime(minutes){
 }
 
 // Abre "Nuevo evento" ya puesto en un día (y horario) tocado; todo se puede cambiar
-function openNewAt(type, dateISO, time){
+function populateFreeTimeSelect(sel){
+  sel.innerHTML = '';
+  for(let m = VAL_INI*60; m <= VAL_FIN*60; m += 15){
+    const o = document.createElement('option'); o.value = o.textContent = minutesToTime(m); sel.appendChild(o);
+  }
+}
+document.getElementById('otroHorarioBtn').addEventListener('click', ()=>{
+  const actual = startSelect.value;
+  populateFreeTimeSelect(startSelect);        // todas las horas, no solo las de Cupos
+  startSelect.value = actual;
+  document.getElementById('otroHorarioBtn').classList.add('hidden');
+});
+function openNewAt(type, dateISO, time, libre){
   openEditModal(null);
+  if(libre){ populateFreeTimeSelect(startSelect); document.getElementById('otroHorarioBtn').classList.add('hidden'); }   // cualquier hora, no solo las de Cupos
   setType(type);
   document.getElementById('f-date').value = dateISO;
   document.getElementById('f-startdate').value = dateISO;
@@ -1875,8 +1920,8 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     startTime = getStartTime();
     endTime = getEndTime();
     if(endTime <= startTime){ alert('La hora de fin tiene que ser después de la hora de inicio.'); return; }
-    if(minutesOf(startTime) < DIA_INI*60 || minutesOf(endTime) > DIA_FIN*60){
-      alert(`El horario tiene que estar entre las ${pad2(DIA_INI)}:00 y las ${pad2(DIA_FIN)}:00, que es el rango que se ve en la agenda.`);
+    if(minutesOf(startTime) < VAL_INI*60 || minutesOf(endTime) > VAL_FIN*60){
+      alert(`El horario tiene que estar entre las ${pad2(VAL_INI)}:00 y las ${pad2(VAL_FIN)}:00.`);
       return;
     }
   }
@@ -1987,7 +2032,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 
 /* ---------------- Modal: detalle ---------------- */
 const detailOverlay = document.getElementById('detailOverlay');
-const typeLabels = { recurrente:'Agenda', aislada:'Extra', personal:'Tareas' };
+const typeLabels = { recurrente:'Regular', aislada:'Consulta', personal:'Tareas' };
 const typeColors = { recurrente:'var(--agenda-bg)', aislada:'var(--extra-bg)', personal:'var(--personal-bg)' };
 const typeText   = { recurrente:'#203864', aislada:'#C94C4C', personal:'#12504a' };
 
@@ -2366,7 +2411,7 @@ function renderSearch(){
     return af ? a.date.localeCompare(b.date) : b.date.localeCompare(a.date);
   });
   found.slice(0,60).forEach(({e,date})=>{
-    const label = e.type==='recurrente' ? 'Agenda' : e.type==='aislada' ? 'Extra' : 'Tarea';
+    const label = e.type==='recurrente' ? 'Regular' : e.type==='aislada' ? 'Consulta' : 'Tarea';
     const d = new Date(date+'T00:00:00');
     const meta = e.type==='recurrente'
       ? `${label} · ${evtDays(e).map(d=>DAY_SHORT_MON[d]).join('/')} ${e.startTime}`
@@ -2480,6 +2525,35 @@ document.getElementById('closeDiaBtn').addEventListener('click', ()=> diaOverlay
 diaOverlay.addEventListener('click', (e)=>{ if(e.target === diaOverlay) diaOverlay.classList.remove('open'); });
 
 document.querySelectorAll('#franjaRow button').forEach(b=> b.addEventListener('click', ()=> setFranja(b.dataset.f)));
+
+/* ---- Horarios extra (fuera del horario de la agenda) ---- */
+function fueraDeAgenda(e){
+  return minutesOf(e.endTime) <= DIA_INI*60 || minutesOf(e.startTime) >= DIA_FIN*60;
+}
+const extraOverlay = document.getElementById('extraOverlay');
+let extraFecha = null;
+function openExtra(iso){
+  extraFecha = iso;
+  const d = new Date(iso+'T00:00:00');
+  document.getElementById('extraTitulo').textContent = `Horarios extra · ${DOW_SHORT[d.getDay()]} ${formatDMY(iso).slice(0,5)}`;
+  const lista = document.getElementById('extraLista');
+  lista.innerHTML = '';
+  const fuera = eventsForDate(d).filter(e=> e.type !== 'personal' && fueraDeAgenda(e)).sort((a,b)=> a.startTime.localeCompare(b.startTime));
+  if(!fuera.length) lista.innerHTML = '<div style="color:var(--ink-soft);font-size:0.88rem;padding:8px 0;">No hay clases extra este día.</div>';
+  fuera.forEach(e=>{
+    const r = document.createElement('div');
+    r.className = 'res-row';
+    r.style.gridTemplateColumns = '1fr';
+    const canc = getRegistro(e.id, iso).cancelada;
+    r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);${canc ? 'text-decoration:line-through;opacity:.6;' : ''}">${escapeHtml(e.title)} <span style="color:var(--ink-soft);font-family:var(--font-num);font-size:0.78rem;">· ${e.startTime} a ${e.endTime}</span></div>`;
+    r.addEventListener('click', ()=>{ extraOverlay.classList.remove('open'); openDetail(e.id, iso); });
+    lista.appendChild(r);
+  });
+  extraOverlay.classList.add('open');
+}
+document.getElementById('closeExtraBtn').addEventListener('click', ()=> extraOverlay.classList.remove('open'));
+document.getElementById('extraNuevaBtn').addEventListener('click', ()=>{ extraOverlay.classList.remove('open'); openNewAt('aislada', extraFecha, '08:00', true); });
+extraOverlay.addEventListener('click', (e)=>{ if(e.target === extraOverlay) extraOverlay.classList.remove('open'); });
 
 /* ---- Tareas del día ---- */
 const tareasOverlay = document.getElementById('tareasOverlay');
@@ -2768,21 +2842,15 @@ function makeAvailabilityImage(done){
   if(!availWeekStart) availWeekStart = mondayOfWeek(currentStart);
   const horarios = referencia.horarios.slice().sort();
   if(horarios.length === 0) return;
-  // la imagen solo muestra los días que se ofrecen: sin los que ya pasaron ni los marcados "sin clase"
+  // siempre los 5 días; los que ya pasaron (o están marcados "sin clase") quedan vacíos
   const hoy = startOfDay(new Date());
-  const todos = [0,1,2,3,4].map(i=> ({ i, d: addDays(availWeekStart, i) }));
-  let visibles = todos.filter(x=> x.d >= hoy && !isDayBlocked(toISODate(x.d)));
-  if(!visibles.length) visibles = todos;               // si no quedara ninguno, se muestra la semana completa
-  const dates = visibles.map(x=> x.d), idxs = visibles.map(x=> x.i);
-  const n = dates.length;
+  const dates = [0,1,2,3,4].map(i=> addDays(availWeekStart, i));
+  const apagado = dates.map(d=> d < hoy || isDayBlocked(toISODate(d)));
   const opts = {day:'numeric', month:'short'};
-  const rango = n === 1
-    ? dates[0].toLocaleDateString('es-UY', opts)
-    : `${dates[0].toLocaleDateString('es-UY', opts)} – ${dates[n-1].toLocaleDateString('es-UY', opts)}`;
+  const rango = `${dates[0].toLocaleDateString('es-UY', opts)} – ${dates[4].toLocaleDateString('es-UY', opts)}`;
 
-  const SC = 2, PAD = 32, LAB = 112, GAP = 8, CH = 56;
-  const colW = 102;
-  const W = Math.max(480, PAD*2 + LAB + n*colW + (n-1)*GAP);
+  const SC = 2, W = 720, PAD = 32, LAB = 112, GAP = 8, CH = 56;
+  const colW = (W - PAD*2 - LAB - GAP*4) / 5;
   const top = 150;                                   // alto del encabezado + letras de los días
   const H = top + 70 + horarios.length*(CH+GAP) + 70;
   const cv = document.createElement('canvas');
@@ -2803,8 +2871,8 @@ function makeAvailabilityImage(done){
   c.textAlign = 'center';
   dates.forEach((d,i)=>{
     const cx = PAD + LAB + i*(colW+GAP) + colW/2;
-    c.fillStyle = '#343A40'; c.font = `700 28px ${UI}`; c.fillText(AVAIL_LETTERS[idxs[i]], cx, top+28);
-    c.fillStyle = '#6c7279'; c.font = `18px ${MONO}`; c.fillText(String(d.getDate()), cx, top+54);
+    c.fillStyle = apagado[i] ? '#c9cdd2' : '#343A40'; c.font = `700 28px ${UI}`; c.fillText(AVAIL_LETTERS[i], cx, top+28);
+    c.fillStyle = apagado[i] ? '#d3d6da' : '#6c7279'; c.font = `18px ${MONO}`; c.fillText(String(d.getDate()), cx, top+54);
   });
 
   horarios.forEach((hr,r)=>{
@@ -2814,7 +2882,7 @@ function makeAvailabilityImage(done){
     dates.forEach((d,i)=>{
       const dISO = toISODate(d);
       const x = PAD + LAB + i*(colW+GAP);
-      if(isBlocked(dISO, hr)) return;                      // desactivado: queda en blanco
+      if(apagado[i] || isBlocked(dISO, hr)) return;        // pasado o desactivado: queda en blanco
       const count = eventsForDate(d).filter(e => e.type !== 'personal' && e.startTime === hr && !getRegistro(e.id, dISO).cancelada).length;
       const free = Math.max(CUPO_REFERENCIA - count, 0);
       rr(x, y, colW, CH, 12);
@@ -3025,7 +3093,7 @@ function buildWaitlistRow(entry, { recommend }){
       <div style="color:var(--ink-soft);font-size:0.78rem;">${formatDMY(entry.date)} · ${entry.startTime} a ${entry.endTime}</div>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;">
-      <button data-convert="${entry.id}" style="border:1px solid var(--line-strong);border-radius:8px;background:#fff;padding:6px 8px;font-size:0.76rem;cursor:pointer;">Convertir a Extra</button>
+      <button data-convert="${entry.id}" style="border:1px solid var(--line-strong);border-radius:8px;background:#fff;padding:6px 8px;font-size:0.76rem;cursor:pointer;">Convertir a Consulta</button>
       <button data-remove="${entry.id}" style="border:none;background:none;color:var(--ink-soft);font-weight:700;cursor:pointer;padding:6px;">×</button>
     </div>
   `;
@@ -3351,10 +3419,12 @@ document.getElementById('alumnosSearch').addEventListener('input', renderAlumnos
 document.getElementById('closeAlumnosBtn').addEventListener('click', ()=> alumnosOverlay.classList.remove('open'));
 document.getElementById('newAlumnoBtn').addEventListener('click', ()=> openAlumno(null));
 
+let fichaVista = null, fichaMes = null;   // historial de la ficha: 'mes' | 'todo'
 let fichaFocus = null;   // clase a la que se refiere el aviso de reserva (la recién agendada o la que se estaba mirando)
 function openAlumno(id, focus){
   fichaId = id;
   fichaFocus = focus || null;
+  fichaVista = null; fichaMes = null;      // se eligen solas según cuánto viene el alumno
   const a = id ? alumnoById(id) : null;
   document.getElementById('fichaTitle').textContent = a ? 'Ficha' : 'Nuevo alumno';
   document.getElementById('fa-nombre').value = a ? a.nombre : '';
@@ -3443,7 +3513,7 @@ function renderFichaExtras(){
       const reg = o.date < todayISO ? getRegistro(o.evt.id, o.date) : null;
       const row = document.createElement('div'); row.className = 'ledger-row';
       row.innerHTML = `<div style="font-family:var(--font-num);">${formatDMY(o.date).slice(0,5)}</div>` +
-        `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type==='recurrente'?'Agenda':'Extra'}</div>` +
+        `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type==='recurrente'?'Regular':'Consulta'}</div>` +
         `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">debe</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
       const nota = getRegistro(o.evt.id, o.date).nota;
       if(nota){ const n = document.createElement('div'); n.className = 'ledger-nota'; n.textContent = nota; row.appendChild(n); }
@@ -3455,9 +3525,51 @@ function renderFichaExtras(){
       led.appendChild(row);
     });
   };
-  addRows('Próximas clases', next.slice(0,6));
-  addRows('Anteriores', past.slice().reverse().slice(0,30));
-  if(occ.length) hist.appendChild(led);
+  if(!occ.length) return;
+
+  // si viene mucho se ve por mes; si viene poco, todo junto. Se puede cambiar con los botones.
+  if(!fichaVista) fichaVista = past.length > 12 ? 'mes' : 'todo';
+  if(!fichaMes){ const h = new Date(); fichaMes = new Date(h.getFullYear(), h.getMonth(), 1); }
+
+  const ctrl = document.createElement('div');
+  ctrl.className = 'hist-ctrl';
+  const mkPill = (txt, activo, fn)=>{
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = txt;
+    b.className = 'hist-pill' + (activo ? ' active' : ''); b.addEventListener('click', fn); return b;
+  };
+  ctrl.appendChild(mkPill('Por mes', fichaVista === 'mes', ()=>{ fichaVista = 'mes'; renderFichaExtras(); }));
+  ctrl.appendChild(mkPill('Todo', fichaVista === 'todo', ()=>{ fichaVista = 'todo'; renderFichaExtras(); }));
+  if(fichaVista === 'mes'){
+    const nav = document.createElement('div'); nav.className = 'hist-mes';
+    const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label','Mes anterior');
+    const next2 = document.createElement('button'); next2.type = 'button'; next2.textContent = '›'; next2.setAttribute('aria-label','Mes siguiente');
+    prev.addEventListener('click', ()=>{ fichaMes = new Date(fichaMes.getFullYear(), fichaMes.getMonth()-1, 1); renderFichaExtras(); });
+    next2.addEventListener('click', ()=>{ fichaMes = new Date(fichaMes.getFullYear(), fichaMes.getMonth()+1, 1); renderFichaExtras(); });
+    const t = fichaMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+    const lab = document.createElement('span'); lab.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    nav.appendChild(prev); nav.appendChild(lab); nav.appendChild(next2);
+    ctrl.appendChild(nav);
+  }
+  hist.appendChild(ctrl);
+
+  if(fichaVista === 'mes'){
+    const key = fichaMes.getFullYear() + '-' + String(fichaMes.getMonth()+1).padStart(2,'0');
+    const delMes = occ.filter(o=> o.date.slice(0,7) === key);
+    if(delMes.length){
+      const dadasMes = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
+      addRows(`${delMes.length} clase${delMes.length===1?'':'s'}${dadasMes ? ' · ' + dadasMes + ' dada' + (dadasMes===1?'':'s') : ''}`, delMes);
+      hist.appendChild(led);
+    } else {
+      const vacio = document.createElement('div');
+      vacio.style.cssText = 'font-size:0.82rem;color:var(--ink-soft);padding:10px 2px;';
+      vacio.textContent = 'No hay clases este mes.';
+      hist.appendChild(vacio);
+    }
+  } else {
+    addRows('Próximas clases', next.slice(0,6));
+    addRows('Anteriores', past.slice().reverse());
+    hist.appendChild(led);
+  }
 }
 
 document.getElementById('fa-save').addEventListener('click', ()=>{
