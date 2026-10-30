@@ -892,6 +892,8 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost hidden" id="fa-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
 
     <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
+    <button class="btn-ghost hidden" id="fa-resumen-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin:8px 0 0;">Enviar resumen de clases (imagen)</button>
+    <div id="fa-resumen-msg" style="font-size:0.74rem;color:var(--ink-soft);margin-top:6px;"></div>
     <div id="fa-parecidos"></div>
     <div id="fa-historial"></div>
 
@@ -3461,6 +3463,7 @@ function renderFichaExtras(){
   const a = id ? alumnoById(id) : null;
 
   document.getElementById('fa-wa').classList.toggle('hidden', !(a && waPhone(a.telefono)));
+  document.getElementById('fa-resumen-wa').classList.toggle('hidden', !(a && alumnoOccurrences(id).length));
   document.getElementById('fa-delete').classList.toggle('hidden', !(a && alumnoEvents(id).length === 0));
   document.getElementById('fa-merge-btn').disabled = !a;
 
@@ -3610,6 +3613,98 @@ document.getElementById('fa-examen-x').addEventListener('click', ()=>{
   document.getElementById('fa-examen-tema').value = '';
 });
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
+// Resumen de clases como imagen con el formato de la ficha (del mes que se está viendo, o de todo)
+function fichaSecciones(id){
+  const occ = alumnoOccurrences(id);
+  const todayISO = toISODate(new Date());
+  const past = occ.filter(o=> o.date < todayISO), next = occ.filter(o=> o.date >= todayISO);
+  if(fichaVista === 'mes' && fichaMes){
+    const key = fichaMes.getFullYear() + '-' + String(fichaMes.getMonth()+1).padStart(2,'0');
+    const delMes = occ.filter(o=> o.date.slice(0,7) === key);
+    const dadas = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
+    return delMes.length ? [{ titulo: `${delMes.length} clase${delMes.length===1?'':'s'}${dadas ? ' · ' + dadas + ' dada' + (dadas===1?'':'s') : ''}`, rows: delMes }] : [];
+  }
+  return [{ titulo:'Próximas clases', rows: next.slice(0,6) }, { titulo:'Anteriores', rows: past.slice().reverse() }].filter(x=> x.rows.length);
+}
+function makeFichaImage(a, done){
+  const secs = fichaSecciones(a.id);
+  if(!secs.length){ done(null); return; }
+  const todayISO = toISODate(new Date());
+  const SC = 2, W = 720, PAD = 28, C1 = 140, C3 = 130, RH = 54, SH = 40, HH = 46, TOP = 150;
+  const x0 = PAD, x1 = PAD + C1, x3 = W - PAD - C3, x4 = W - PAD;
+  const nRows = secs.reduce((n,x)=> n + x.rows.length, 0);
+  const H = TOP + 12 + HH + secs.length*SH + nRows*RH + 36;
+  const cv = document.createElement('canvas');
+  cv.width = W*SC; cv.height = H*SC;
+  const c = cv.getContext('2d'); c.scale(SC, SC);
+  const UI = "-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  const MONO = "'Courier New', ui-monospace, monospace";
+  const BLUE = '#203864', RED = '#C94C4C', INK = '#343A40', GREY = '#6c7279';
+  const BLUEL = 'rgba(32,56,100,.35)';
+  const hline = (y, x_a, x_b, col, w)=>{ c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x_a, y); c.lineTo(x_b, y); c.stroke(); };
+  const vline = (x, y_a, y_b)=>{ c.strokeStyle = RED; c.lineWidth = 2; c.beginPath(); c.moveTo(x, y_a); c.lineTo(x, y_b); c.stroke(); };
+  const spaced = (txt, x, y, sp)=>{ if('letterSpacing' in c) c.letterSpacing = sp + 'px'; c.fillText(txt, x, y); if('letterSpacing' in c) c.letterSpacing = '0px'; };
+
+  c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H);
+  c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+  c.fillStyle = BLUE; c.font = `700 20px ${UI}`; c.fillText('@clasesDeNati', PAD, 44);
+  c.font = `700 38px ${UI}`; c.fillText(a.nombre, PAD, 92);
+  let sub = 'Historial de clases';
+  if(fichaVista === 'mes' && fichaMes){
+    const t = fichaMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+    sub = t.charAt(0).toUpperCase() + t.slice(1);
+  }
+  c.fillStyle = GREY; c.font = `22px ${MONO}`; c.fillText(sub, PAD, 124);
+
+  // doble línea roja y encabezado
+  hline(TOP, x0, x4, RED, 2); hline(TOP + 5, x0, x4, RED, 2);
+  let y = TOP + 8;
+  c.fillStyle = BLUE; c.font = `600 15px ${UI}`;
+  spaced('FECHA', x0 + 12, y + HH/2 + 5, 3); spaced('DETALLE', x1 + 14, y + HH/2 + 5, 3); spaced('PAGO', x3 + 14, y + HH/2 + 5, 3);
+  vline(x1, y, y + HH); vline(x3, y, y + HH);
+  y += HH; hline(y, x0, x4, RED, 2.5);
+
+  secs.forEach(sec=>{
+    c.fillStyle = 'rgba(32,56,100,.07)'; c.fillRect(x0, y, x4 - x0, SH);
+    c.fillStyle = BLUE; c.font = `600 15px ${UI}`; spaced(sec.titulo.toUpperCase(), x0 + 12, y + SH/2 + 5, 2.5);
+    y += SH; hline(y, x0, x4, BLUEL, 1.5);
+    sec.rows.forEach(o=>{
+      const d = new Date(o.date + 'T00:00:00');
+      const reg = getRegistro(o.evt.id, o.date);
+      const base = y + RH/2;
+      c.fillStyle = INK; c.font = `22px ${MONO}`; c.fillText(formatDMY(o.date).slice(0,5), x0 + 12, base + 7);
+      c.font = `24px ${UI}`;
+      c.fillStyle = reg.cancelada ? GREY : INK;
+      c.fillText(`${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type === 'recurrente' ? 'Regular' : 'Consulta'}`, x1 + 14, base + 8);
+      if(reg.cancelada){ c.fillStyle = GREY; c.font = `18px ${UI}`; c.fillText('cancel.', x3 + 14, base + 6); }
+      else if(o.date < todayISO){
+        if(reg.paid === false){ c.fillStyle = RED; c.font = `700 24px ${UI}`; c.fillText('debe', x3 + 14, base + 8); }
+        else { c.fillStyle = BLUE; c.font = `24px ${UI}`; c.fillText('pagó', x3 + 14, base + 8); }
+      }
+      vline(x1, y, y + RH); vline(x3, y, y + RH);
+      y += RH; hline(y, x0, x4, BLUEL, 1.5);
+    });
+  });
+
+  const nombreArch = `resumen-${normName(a.nombre).replace(/\s+/g,'-')}-${todayISO}.jpg`;
+  cv.toBlob(blob=> done(blob, nombreArch), 'image/jpeg', 0.92);
+}
+document.getElementById('fa-resumen-wa').addEventListener('click', ()=>{
+  const a = alumnoById(fichaId);
+  if(!a) return;
+  const msg = document.getElementById('fa-resumen-msg');
+  msg.textContent = '';
+  makeFichaImage(a, async (blob, name)=>{
+    if(!blob){ msg.textContent = 'No hay clases para mostrar en esta vista.'; return; }
+    const file = new File([blob], name, { type:'image/jpeg' });
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      try{ await navigator.share({ files:[file], text:'Hola! Te comparto el resumen de tus clases.' }); }catch(e){ /* si cancelás el menú no pasa nada */ }
+    } else {
+      saveBlobAsFile(blob, name);
+      msg.textContent = 'Este navegador no deja enviarla directo: se descargó la imagen, adjuntala desde WhatsApp.';
+    }
+  });
+});
 document.getElementById('fa-wa').addEventListener('click', ()=>{
   const a = alumnoById(fichaId);
   if(a && waPhone(a.telefono)) window.open('https://wa.me/' + waPhone(a.telefono), '_blank');
