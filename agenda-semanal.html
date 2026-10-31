@@ -355,7 +355,7 @@
     overflow:hidden;
   }
   .type-recurrente{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#203864; }
-  .type-aislada{ background:#d6e8fb; border-left-color:#2F7FD1; color:#1b5a9e; }
+  .type-aislada{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#1b5a9e; }
   .event-block.debe{ background:#fbe3e3; border-left-color:#C94C4C; color:#8a2f2f; }
   .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#12504a; }
 
@@ -428,7 +428,7 @@
     color:var(--ink-soft);
   }
   .type-picker button.active[data-t="recurrente"]{ border-color:var(--agenda); color:#203864; background:var(--agenda-bg); }
-  .type-picker button.active[data-t="aislada"]{ border-color:#2F7FD1; color:#1b5a9e; background:#d6e8fb; }
+  .type-picker button.active[data-t="aislada"]{ border-color:var(--agenda); color:#1b5a9e; background:var(--agenda-bg); }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:#1d6f65; background:var(--personal-bg); }
 
   .name-suggest{
@@ -2056,7 +2056,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 /* ---------------- Modal: detalle ---------------- */
 const detailOverlay = document.getElementById('detailOverlay');
 const typeLabels = { recurrente:'Regular', aislada:'Consulta', personal:'Tareas' };
-const typeColors = { recurrente:'var(--agenda-bg)', aislada:'#d6e8fb', personal:'var(--personal-bg)' };
+const typeColors = { recurrente:'var(--agenda-bg)', aislada:'var(--agenda-bg)', personal:'var(--personal-bg)' };
 const typeText   = { recurrente:'#203864', aislada:'#1b5a9e', personal:'#12504a' };
 
 function openDetail(id, dateISO){
