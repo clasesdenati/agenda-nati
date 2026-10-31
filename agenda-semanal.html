@@ -1469,7 +1469,11 @@ function renderCalendar(){
       if(e.target.closest('.event-block')) return;
       const rect = col.getBoundingClientRect();
       const tapped = DAY_START_HOUR*60 + ((e.clientY - rect.top) / rect.height) * totalMinutes;
-      openNewAt('aislada', toISODate(date), nearestReferenceTime(tapped));
+      // la hora del renglón tocado (si ahí cae un horario de Cupos, ese; si no, la hora en punto)
+      const h0 = Math.floor(tapped/60)*60;
+      const ref = refMinutes().find(r => r >= h0 && r < h0+60);
+      const hora = ref != null ? minutesToTime(ref) : minutesToTime(h0);
+      openNewAt('aislada', toISODate(date), hora, ref == null);
     });
     drawClassBreaks(col);
     drawBlockedSlots(col, toISODate(date));
