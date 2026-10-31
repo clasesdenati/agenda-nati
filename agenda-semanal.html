@@ -574,6 +574,9 @@
   .res-nav button{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; font-size:1.1rem; cursor:pointer; color:var(--ink); }
   .res-nav span{ font-weight:700; color:var(--brand); min-width:130px; text-align:center; }
   .res-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .res-tiles3{ grid-template-columns:1fr 1fr 1fr; }
+  .res-tiles3 .res-tile{ padding:10px 8px; }
+  .res-tiles3 .res-tile span{ font-size:0.62rem; letter-spacing:.02em; white-space:nowrap; }
   .res-tile{ border-radius:10px; padding:10px 12px; background:var(--line); }
   .res-tile b{ display:block; font-size:1.5rem; font-family:var(--font-num); line-height:1.1; }
   .res-tile span{ font-size:0.72rem; letter-spacing:.04em; text-transform:uppercase; }
@@ -1005,6 +1008,11 @@ window.addEventListener('error', function(e){
 <div class="overlay" id="resumenOverlay">
   <div class="modal">
     <h2>Resumen</h2>
+    <div id="resTabs" style="display:flex;gap:6px;justify-content:center;margin-bottom:12px;">
+      <button class="hist-pill" data-m="dia" type="button">Diario</button>
+      <button class="hist-pill" data-m="sem" type="button">Semanal</button>
+      <button class="hist-pill" data-m="mes" type="button">Mensual</button>
+    </div>
     <div class="res-nav"><button id="resPrev" aria-label="Mes anterior">‹</button><span id="resMes"></span><button id="resNext" aria-label="Mes siguiente">›</button></div>
     <div id="resBody"></div>
     <div class="modal-actions"><button class="btn-primary" id="closeResumenBtn">Cerrar</button></div>
@@ -2702,65 +2710,86 @@ pruebasOverlay.addEventListener('click', (e)=>{ if(e.target === pruebasOverlay) 
 
 /* ---- Resumen del mes ---- */
 const resumenOverlay = document.getElementById('resumenOverlay');
-let resMes = null;
-function statsDelMes(y, m){
-  const total = new Date(y, m+1, 0).getDate();
-  const hoyISO = toISODate(new Date());
-  const t = { dadas:0, cobradas:0, deben:0, porDar:0, canceladas:0, gratis:0 }, per = {};
-  for(let d=1; d<=total; d++){
-    const date = new Date(y, m, d), iso = toISODate(date);
-    eventsForDate(date).filter(e=> e.type !== 'personal').forEach(e=>{
-      if(getRegistro(e.id, iso).cancelada){ t.canceladas++; return; }
+let resModo = 'dia', resFecha = new Date();
+function resRango(){
+  const f = startOfDay(resFecha);
+  if(resModo === 'dia') return [f, f];
+  if(resModo === 'sem'){ const lu = addDays(f, -mondayIndex(f)); return [lu, addDays(lu, 6)]; }
+  return [new Date(f.getFullYear(), f.getMonth(), 1), new Date(f.getFullYear(), f.getMonth()+1, 0)];
+}
+// Clases ya dadas (días pasados, y las de hoy cuya hora ya empezó) del rango
+function statsRango(ini, fin){
+  const ahora = new Date(), hoyISO = toISODate(ahora), minAhora = ahora.getHours()*60 + ahora.getMinutes();
+  const t = { pagos:0, debe:0, gratis:0 }, per = {};
+  for(let d = new Date(ini); d <= fin; d = addDays(d, 1)){
+    const iso = toISODate(d);
+    if(iso > hoyISO) break;
+    eventsForDate(d).filter(e=> e.type !== 'personal').forEach(e=>{
+      if(iso === hoyISO && minutesOf(e.startTime) > minAhora) return;
+      const rg = getRegistro(e.id, iso);
+      if(rg.cancelada) return;
       const al = e.alumnoId ? alumnoById(e.alumnoId) : null;
       const key = al ? al.id : 'n_'+e.title;
-      const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, deben:0, porDar:0 });
-      if(iso < hoyISO){
-        t.dadas++; p.dadas++;
-        const rg = getRegistro(e.id, iso);
-        if(rg.paid === false){ t.deben++; p.deben++; } else if(rg.sinCosto) t.gratis++; else t.cobradas++;
-      } else { t.porDar++; p.porDar++; }
+      const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, debe:0 });
+      p.dadas++;
+      if(rg.paid === false){ t.debe++; p.debe++; } else if(rg.sinCosto) t.gratis++; else t.pagos++;
     });
   }
-  return { t, lista: Object.values(per).sort((a,b)=> (b.dadas+b.porDar) - (a.dadas+a.porDar) || a.nombre.localeCompare(b.nombre,'es')) };
+  return { t, lista: Object.values(per).sort((a,b)=> b.dadas - a.dadas || a.nombre.localeCompare(b.nombre,'es')) };
 }
 function renderResumen(){
-  const y = resMes.getFullYear(), m = resMes.getMonth();
-  const mesTxt = resMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
-  document.getElementById('resMes').textContent = mesTxt.charAt(0).toUpperCase() + mesTxt.slice(1);
-  const { t, lista } = statsDelMes(y, m);
+  const [ini, fin] = resRango();
+  const cap = x => x.charAt(0).toUpperCase() + x.slice(1);
+  let etiqueta;
+  if(resModo === 'dia') etiqueta = cap(ini.toLocaleDateString('es-UY', { weekday:'short', day:'numeric', month:'short' }).replace(/\./g,''));
+  else if(resModo === 'sem') etiqueta = `${ini.getDate()} ${ini.toLocaleDateString('es-UY',{month:'short'}).replace('.','')} – ${fin.getDate()} ${fin.toLocaleDateString('es-UY',{month:'short'}).replace('.','')}`;
+  else etiqueta = cap(ini.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' '));
+  document.getElementById('resMes').textContent = etiqueta;
+  document.querySelectorAll('#resTabs button').forEach(b=> b.classList.toggle('active', b.dataset.m === resModo));
+  const { t, lista } = statsRango(ini, fin);
   const body = document.getElementById('resBody');
-  body.innerHTML = `<div class="res-tiles">
-    <div class="res-tile t-dadas"><b>${t.dadas}</b><span>Clases dadas</span></div>
-    <div class="res-tile t-cob"><b>${t.cobradas}</b><span>Cobradas</span></div>
-    <div class="res-tile t-debe"><b>${t.deben}</b><span>Por cobrar</span></div>
-    <div class="res-tile t-dar"><b>${t.porDar}</b><span>Por dar</span></div></div>` +
-    ((t.canceladas || t.gratis) ? `<div style="font-size:0.78rem;color:var(--ink-soft);margin:-6px 0 12px;">${[t.gratis ? 'Sin costo: '+t.gratis : '', t.canceladas ? 'Canceladas: '+t.canceladas : ''].filter(Boolean).join(' · ')}</div>` : '');
-  const hoy = new Date(), dif = (y - hoy.getFullYear())*12 + (m - hoy.getMonth());
-  if(dif !== 0 && dif !== 1){
-    body.innerHTML += `<div style="color:var(--ink-soft);font-size:0.78rem;">${lista.length ? 'El detalle por alumno se muestra solo del mes actual y el siguiente.' : 'No hay clases este mes.'}</div>`;
-    return;
-  }
-  if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases este mes.</div>'; return; }
+  body.innerHTML = `<div class="res-tiles res-tiles3">
+    <div class="res-tile t-cob"><b>${t.pagos}</b><span>Pagos</span></div>
+    <div class="res-tile t-debe"><b>${t.debe}</b><span>Sin pagar</span></div>
+    <div class="res-tile t-dadas"><b>${t.gratis}</b><span>Sin costo</span></div></div>`;
+  if(resModo !== 'mes') return;
+  if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases dadas este mes.</div>'; return; }
+  const tit = document.createElement('div');
+  tit.style.cssText = 'font-size:0.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin:4px 0 2px;';
+  tit.textContent = 'Top 5 de alumnos';
+  body.appendChild(tit);
   const head = document.createElement('div');
   head.className = 'res-row head';
-  head.innerHTML = '<div>Alumno</div><div>Dadas</div><div>Debe</div><div>Por dar</div>';
+  head.innerHTML = '<div>Alumno</div><div>Dadas</div><div>Debe</div>';
+  head.style.gridTemplateColumns = '1fr 48px 48px';
   body.appendChild(head);
-  lista.forEach(p=>{
+  lista.slice(0,5).forEach((p,i)=>{
     const r = document.createElement('div');
     r.className = 'res-row';
-    r.innerHTML = `<div>${escapeHtml(p.nombre)}</div><div>${p.dadas}</div><div class="${p.deben?'debe':''}">${p.deben}</div><div>${p.porDar}</div>`;
+    r.style.gridTemplateColumns = '1fr 48px 48px';
+    r.innerHTML = `<div>${i+1}. ${escapeHtml(p.nombre)}</div><div>${p.dadas}</div><div class="${p.debe?'debe':''}">${p.debe}</div>`;
     if(p.id) r.addEventListener('click', ()=> openAlumno(p.id));
     body.appendChild(r);
   });
 }
+function resMover(n){
+  const f = startOfDay(resFecha);
+  resFecha = resModo === 'dia' ? addDays(f, n) : resModo === 'sem' ? addDays(f, 7*n) : new Date(f.getFullYear(), f.getMonth()+n, 1);
+  renderResumen();
+}
 document.getElementById('menuResumenBtn').addEventListener('click', ()=>{
   debtorsMenu.classList.add('hidden');
-  const h = new Date(); resMes = new Date(h.getFullYear(), h.getMonth(), 1);
+  resFecha = new Date();
   renderResumen();
   resumenOverlay.classList.add('open');
 });
-document.getElementById('resPrev').addEventListener('click', ()=>{ resMes = new Date(resMes.getFullYear(), resMes.getMonth()-1, 1); renderResumen(); });
-document.getElementById('resNext').addEventListener('click', ()=>{ resMes = new Date(resMes.getFullYear(), resMes.getMonth()+1, 1); renderResumen(); });
+document.querySelectorAll('#resTabs button').forEach(b=> b.addEventListener('click', ()=>{
+  resModo = b.dataset.m;
+  if(resModo === 'mes') resFecha = new Date(resFecha.getFullYear(), resFecha.getMonth(), 1);
+  renderResumen();
+}));
+document.getElementById('resPrev').addEventListener('click', ()=> resMover(-1));
+document.getElementById('resNext').addEventListener('click', ()=> resMover(1));
 document.getElementById('closeResumenBtn').addEventListener('click', ()=> resumenOverlay.classList.remove('open'));
 resumenOverlay.addEventListener('click', (e)=>{ if(e.target === resumenOverlay) resumenOverlay.classList.remove('open'); });
 
@@ -3678,8 +3707,17 @@ function renderFichaExtras(){
       hist.appendChild(vacio);
     }
   } else {
-    addRows('Próximas clases', proximasClases(next));
-    addRows('Anteriores', past.slice().reverse());
+    fichaSecciones(fichaId).forEach(sec=>{
+      if(sec.rows){ addRows(sec.titulo, sec.rows); return; }
+      const hd = document.createElement('div'); hd.className = 'ledger-sec'; hd.textContent = sec.titulo; led.appendChild(hd);
+      sec.meses.forEach(m=>{
+        const row = document.createElement('div'); row.className = 'ledger-row';
+        row.style.gridTemplateColumns = '1fr auto';
+        row.innerHTML = `<div>${escapeHtml(m.label)}</div><div style="color:var(--ink-soft);font-family:var(--font-num);">${m.total} clase${m.total===1?'':'s'} ›</div>`;
+        row.addEventListener('click', ()=>{ fichaVista = 'mes'; fichaMes = m.fecha; renderFichaExtras(); });   // tocar un mes lo abre al detalle
+        led.appendChild(row);
+      });
+    });
     hist.appendChild(led);
   }
 }
@@ -3732,7 +3770,26 @@ function fichaSecciones(id){
     const dadas = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
     return delMes.length ? [{ titulo: `${delMes.length} clase${delMes.length===1?'':'s'}${dadas ? ' · ' + dadas + ' dada' + (dadas===1?'':'s') : ''}`, rows: delMes }] : [];
   }
-  return [{ titulo:'Próximas clases', rows: proximasClases(next) }, { titulo:'Anteriores', rows: past.slice().reverse() }].filter(x=> x.rows.length);
+  // Todo: este mes y el siguiente al detalle; los meses anteriores, solo el total (si son muchas clases)
+  const h = new Date(), mk = d=> d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  const keyHoy = mk(h), keySig = mk(new Date(h.getFullYear(), h.getMonth()+1, 1));
+  const proximas = proximasClases(next).filter(o=> o.date.slice(0,7) <= keySig);
+  const viejas = past.filter(o=> o.date.slice(0,7) < keyHoy), deEsteMes = past.filter(o=> o.date.slice(0,7) >= keyHoy);
+  const res = [{ titulo:'Próximas clases', rows: proximas }];
+  if(viejas.length > 12){
+    res.push({ titulo:'Este mes', rows: deEsteMes.slice().reverse() });
+    const porMes = {};
+    viejas.forEach(o=>{ const k = o.date.slice(0,7); (porMes[k] = porMes[k] || []).push(o); });
+    const meses = Object.keys(porMes).sort().reverse().map(k=>{
+      const f = new Date(+k.slice(0,4), +k.slice(5,7)-1, 1);
+      const t = f.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+      return { key:k, fecha:f, label: t.charAt(0).toUpperCase() + t.slice(1), total: porMes[k].length };
+    });
+    res.push({ titulo:'Meses anteriores', meses });
+  } else {
+    res.push({ titulo:'Anteriores', rows: past.slice().reverse() });
+  }
+  return res.filter(x=> (x.rows || x.meses).length);
 }
 function makeFichaImage(a, done){
   const secs = fichaSecciones(a.id);
@@ -3740,7 +3797,7 @@ function makeFichaImage(a, done){
   const todayISO = toISODate(new Date());
   const SC = 2, W = 720, PAD = 28, C1 = 170, RH = 54, SH = 40, HH = 46, TOP = 150;
   const x0 = PAD, x1 = PAD + C1, x4 = W - PAD;
-  const nRows = secs.reduce((n,x)=> n + x.rows.length, 0);
+  const nRows = secs.reduce((n,x)=> n + (x.rows || x.meses).length, 0);
   const H = TOP + 12 + HH + secs.length*SH + nRows*RH + 36;
   const cv = document.createElement('canvas');
   cv.width = W*SC; cv.height = H*SC;
@@ -3776,7 +3833,12 @@ function makeFichaImage(a, done){
     c.fillStyle = 'rgba(32,56,100,.07)'; c.fillRect(x0, y, x4 - x0, SH);
     c.fillStyle = BLUE; c.font = `600 15px ${UI}`; spaced(sec.titulo.toUpperCase(), x0 + 12, y + SH/2 + 5, 2.5);
     y += SH; hline(y, x0, x4, BLUEL, 1.5);
-    sec.rows.forEach(o=>{
+    (sec.meses || []).forEach(m=>{
+      c.fillStyle = INK; c.font = `24px ${UI}`; c.fillText(m.label, x0 + 12, y + RH/2 + 8);
+      c.textAlign = 'right'; c.font = `22px ${MONO}`; c.fillText(`${m.total} clase${m.total===1?'':'s'}`, x4 - 12, y + RH/2 + 7); c.textAlign = 'left';
+      y += RH; hline(y, x0, x4, BLUEL, 1.5);
+    });
+    (sec.rows || []).forEach(o=>{
       const d = new Date(o.date + 'T00:00:00');
       const base = y + RH/2;
       c.fillStyle = INK; c.font = `22px ${MONO}`; c.fillText(formatDMY(o.date).slice(0,5), x0 + 12, base + 7);
