@@ -1771,6 +1771,9 @@ function openEditModal(existing, asCopy){
   document.getElementById('otroHorarioBtn').classList.remove('hidden');
   editOverlay.classList.add('open');
   updateNameLink();
+  if(!existing){                                              // evento nuevo: cursor ya en el nombre
+    setTimeout(()=>{ const f = currentType === 'personal' ? document.getElementById('f-title-multiline') : document.getElementById('f-title'); if(f) f.focus(); }, 80);
+  }
   if(asCopy && existing && existing.type !== 'personal'){      // al duplicar: nombre seleccionado → escribir lo reemplaza, tocar afuera lo deja
     setTimeout(()=>{ const f = document.getElementById('f-title'); f.focus(); f.select(); }, 60);
   }
