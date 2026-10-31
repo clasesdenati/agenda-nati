@@ -1115,7 +1115,7 @@ const DIA_INI = 10, DIA_FIN = 18.5;             // rango que muestra la agenda (
 const VAL_INI = 7, VAL_FIN = 21;                // horas permitidas al guardar una clase (las de fuera del rango van en "Extra")
 let DAY_START_HOUR = DIA_INI, DAY_END_HOUR = DIA_FIN;   // rango que se está viendo (Mañana / Tarde / Día)
 const FRANJAS = { manana:[10,14], tarde:[14,18.5], dia:[10,18.5] };
-let franja = new Date().getHours() < 14 ? 'manana' : 'tarde';
+let franja = 'dia';                              // al abrir siempre arranca en "Día"; después elegís 10hs o 14hs
 DAY_START_HOUR = FRANJAS[franja][0]; DAY_END_HOUR = FRANJAS[franja][1];
 // si estás viendo Mañana y la clase es de tarde (o al revés), pasa a la franja que corresponde; "Día" no se toca
 function ajustarFranja(startTime){
