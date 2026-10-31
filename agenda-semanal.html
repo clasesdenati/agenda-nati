@@ -108,7 +108,14 @@
     font-size:clamp(0.62rem, 2.9vw, 0.82rem);
     color:var(--ink-soft);
   }
-  .week-nav #weekLabel{ white-space:nowrap; }
+  .week-nav #weekLabel{ white-space:nowrap; cursor:pointer; }
+  .mini-cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; margin-top:6px; }
+  .mini-cal .dow{ text-align:center; font-size:0.66rem; letter-spacing:.08em; color:var(--ink-soft); padding:4px 0; }
+  .mini-cal button{ position:relative; height:38px; border:none; border-radius:10px; background:none; font-family:var(--font-num); font-size:0.86rem; color:var(--ink); cursor:pointer; }
+  .mini-cal button.otro{ color:#b9bdc2; }
+  .mini-cal button.en-vista{ background:#e1e6f0; }
+  .mini-cal button.hoy{ color:var(--recurrente); font-weight:700; box-shadow:inset 0 0 0 1.5px var(--recurrente); }
+  .mini-cal button.con-clases::after{ content:''; position:absolute; left:50%; bottom:4px; width:5px; height:5px; margin-left:-2.5px; border-radius:50%; background:#203864; opacity:.55; }
   .week-nav button{
     width:26px; height:26px; flex-shrink:0;
     border-radius:50%;
@@ -348,7 +355,8 @@
     overflow:hidden;
   }
   .type-recurrente{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#203864; }
-  .type-aislada{ background:var(--extra-bg); border-left-color:var(--extra); color:#C94C4C; }
+  .type-aislada{ background:#d6e8fb; border-left-color:#2F7FD1; color:#1b5a9e; }
+  .event-block.debe{ background:#fbe3e3; border-left-color:#C94C4C; color:#8a2f2f; }
   .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#12504a; }
 
   .overlay{
@@ -420,7 +428,7 @@
     color:var(--ink-soft);
   }
   .type-picker button.active[data-t="recurrente"]{ border-color:var(--agenda); color:#203864; background:var(--agenda-bg); }
-  .type-picker button.active[data-t="aislada"]{ border-color:var(--extra); color:#C94C4C; background:var(--extra-bg); }
+  .type-picker button.active[data-t="aislada"]{ border-color:#2F7FD1; color:#1b5a9e; background:#d6e8fb; }
   .type-picker button.active[data-t="personal"]{ border-color:var(--personal); color:#1d6f65; background:var(--personal-bg); }
 
   .name-suggest{
@@ -937,6 +945,18 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost" id="diaBloqueoBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:8px;"></button>
     <button class="btn-ghost" id="diaRecBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">Enviar recordatorios de este día</button>
     <div class="modal-actions"><button class="btn-primary" id="closeDiaBtn">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: calendario del mes ============ -->
+<div class="overlay" id="calOverlay">
+  <div class="modal">
+    <div class="res-nav"><button id="calPrev" aria-label="Mes anterior">‹</button><span id="calMes"></span><button id="calNext" aria-label="Mes siguiente">›</button></div>
+    <div class="mini-cal" id="calGrid"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="calHoyBtn">Hoy</button>
+      <button class="btn-primary" id="closeCalBtn">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -1562,7 +1582,7 @@ function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
   const startMin = Math.max(minutesOf(evt.startTime) - DAY_START_HOUR*60, 0);
   const endMin = Math.min(minutesOf(evt.endTime) - DAY_START_HOUR*60, totalMin);
   if(endMin <= startMin) return null;                  // fuera de la franja que se está viendo
-  if(getRegistro(evt.id, dateISO).cancelada) el.classList.add('cancelada');
+  { const rg = getRegistro(evt.id, dateISO); if(rg.cancelada) el.classList.add('cancelada'); else if(rg.paid === false) el.classList.add('debe'); }
   const ownTop = startMin*pxPerMin;
   const ownHeight = Math.max((endMin-startMin)*pxPerMin, 14);
 
@@ -2036,8 +2056,8 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 /* ---------------- Modal: detalle ---------------- */
 const detailOverlay = document.getElementById('detailOverlay');
 const typeLabels = { recurrente:'Regular', aislada:'Consulta', personal:'Tareas' };
-const typeColors = { recurrente:'var(--agenda-bg)', aislada:'var(--extra-bg)', personal:'var(--personal-bg)' };
-const typeText   = { recurrente:'#203864', aislada:'#C94C4C', personal:'#12504a' };
+const typeColors = { recurrente:'var(--agenda-bg)', aislada:'#d6e8fb', personal:'var(--personal-bg)' };
+const typeText   = { recurrente:'#203864', aislada:'#1b5a9e', personal:'#12504a' };
 
 function openDetail(id, dateISO){
   const evt = events.find(e=>e.id===id);
@@ -2114,6 +2134,7 @@ document.getElementById('d-paid').addEventListener('change', (e)=>{
   if(!detailId || !detailDate) return;
   const reg = getRegistro(detailId, detailDate);
   setRegistro(detailId, detailDate, { ...reg, paid: e.target.checked });
+  renderCalendar();
 });
 
 function buildCancelMessage(evt, dateISO){
@@ -2528,6 +2549,45 @@ document.getElementById('closeDiaBtn').addEventListener('click', ()=> diaOverlay
 diaOverlay.addEventListener('click', (e)=>{ if(e.target === diaOverlay) diaOverlay.classList.remove('open'); });
 
 document.querySelectorAll('#franjaRow button').forEach(b=> b.addEventListener('click', ()=> setFranja(b.dataset.f)));
+
+/* ---- Calendario del mes (se abre tocando las fechas de arriba) ---- */
+const calOverlay = document.getElementById('calOverlay');
+let calMes = null;
+function renderMiniCal(){
+  const y = calMes.getFullYear(), m = calMes.getMonth();
+  const t = calMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+  document.getElementById('calMes').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  ['D','L','M','M','J','V','S'].forEach(l=>{ const d = document.createElement('div'); d.className = 'dow'; d.textContent = l; grid.appendChild(d); });
+  const primero = new Date(y, m, 1);
+  const inicio = addDays(primero, -primero.getDay());          // semana que empieza en domingo
+  const hoyISO = toISODate(new Date());
+  const vistaIni = toISODate(currentStart), vistaFin = toISODate(addDays(currentStart, DAYS_VISIBLE-1));
+  for(let i=0; i<42; i++){
+    const d = addDays(inicio, i), iso = toISODate(d);
+    if(i >= 35 && d.getMonth() !== m) break;                   // sin sexta fila vacía
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = d.getDate();
+    if(d.getMonth() !== m) b.classList.add('otro');
+    if(iso >= vistaIni && iso <= vistaFin) b.classList.add('en-vista');
+    if(iso === hoyISO) b.classList.add('hoy');
+    if(eventsForDate(d).some(e=> e.type !== 'personal')) b.classList.add('con-clases');
+    b.addEventListener('click', ()=>{ irAFecha(d); calOverlay.classList.remove('open'); renderCalendar(); });
+    grid.appendChild(b);
+  }
+}
+document.getElementById('weekLabel').addEventListener('click', ()=>{
+  calMes = new Date(currentStart.getFullYear(), currentStart.getMonth(), 1);
+  renderMiniCal();
+  calOverlay.classList.add('open');
+});
+document.getElementById('calPrev').addEventListener('click', ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()-1, 1); renderMiniCal(); });
+document.getElementById('calNext').addEventListener('click', ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()+1, 1); renderMiniCal(); });
+document.getElementById('calHoyBtn').addEventListener('click', ()=>{ irAFecha(new Date()); calOverlay.classList.remove('open'); renderCalendar(); });
+document.getElementById('closeCalBtn').addEventListener('click', ()=> calOverlay.classList.remove('open'));
+calOverlay.addEventListener('click', (e)=>{ if(e.target === calOverlay) calOverlay.classList.remove('open'); });
 
 /* ---- Horarios extra (fuera del horario de la agenda) ---- */
 function fueraDeAgenda(e){
