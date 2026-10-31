@@ -1469,7 +1469,7 @@ function renderCalendar(){
       if(e.target.closest('.event-block')) return;
       const rect = col.getBoundingClientRect();
       const tapped = DAY_START_HOUR*60 + ((e.clientY - rect.top) / rect.height) * totalMinutes;
-      openNewAt('recurrente', toISODate(date), nearestReferenceTime(tapped));
+      openNewAt('aislada', toISODate(date), nearestReferenceTime(tapped));
     });
     drawClassBreaks(col);
     drawBlockedSlots(col, toISODate(date));
