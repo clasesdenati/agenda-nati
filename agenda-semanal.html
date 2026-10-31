@@ -3359,6 +3359,9 @@ function alumnoOccurrences(id){
   return out.sort((a,b)=> a.date.localeCompare(b.date) || a.evt.startTime.localeCompare(b.evt.startTime));
 }
 
+// En "Todo" se muestran todas las clases; las fijas se proyectan hasta 60 días adelante (se repiten sin fin)
+function proximasClases(next){ return next; }
+
 function lev(a,b){
   const m=[]; for(let i=0;i<=a.length;i++){ m[i]=[i]; } for(let j=0;j<=b.length;j++) m[0][j]=j;
   for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++)
@@ -3570,7 +3573,7 @@ function renderFichaExtras(){
       hist.appendChild(vacio);
     }
   } else {
-    addRows('Próximas clases', next.slice(0,6));
+    addRows('Próximas clases', proximasClases(next));
     addRows('Anteriores', past.slice().reverse());
     hist.appendChild(led);
   }
@@ -3624,7 +3627,7 @@ function fichaSecciones(id){
     const dadas = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
     return delMes.length ? [{ titulo: `${delMes.length} clase${delMes.length===1?'':'s'}${dadas ? ' · ' + dadas + ' dada' + (dadas===1?'':'s') : ''}`, rows: delMes }] : [];
   }
-  return [{ titulo:'Próximas clases', rows: next.slice(0,6) }, { titulo:'Anteriores', rows: past.slice().reverse() }].filter(x=> x.rows.length);
+  return [{ titulo:'Próximas clases', rows: proximasClases(next) }, { titulo:'Anteriores', rows: past.slice().reverse() }].filter(x=> x.rows.length);
 }
 function makeFichaImage(a, done){
   const secs = fichaSecciones(a.id);
