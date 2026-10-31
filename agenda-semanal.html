@@ -565,6 +565,11 @@
   .ledger-row .ledger-nota{ border-left:none !important; }
 
   /* resumen del mes */
+  .pago-opts{ display:flex; gap:6px; }
+  .pago-opts button{ flex:1; padding:9px 4px; border-radius:20px; border:1.5px solid var(--line-strong); background:#fff; font-family:var(--font-ui); font-size:0.82rem; color:var(--ink); cursor:pointer; }
+  .pago-opts button.on[data-p="pago"]{ background:#dff1ee; border-color:#2A9D8F; color:#12504a; font-weight:600; }
+  .pago-opts button.on[data-p="debe"]{ background:#fbe3e3; border-color:#C94C4C; color:#8a2f2f; font-weight:600; }
+  .pago-opts button.on[data-p="gratis"]{ background:#e1e6f0; border-color:#203864; color:#203864; font-weight:600; }
   .res-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:12px; }
   .res-nav button{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; font-size:1.1rem; cursor:pointer; color:var(--ink); }
   .res-nav span{ font-weight:700; color:var(--brand); min-width:130px; text-align:center; }
@@ -804,9 +809,11 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 12px;border:1px solid var(--line-strong);border-radius:16px;font-size:0.78rem;">Ver ficha</button>
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
-      <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:var(--ink);">
-        <input type="checkbox" id="d-paid" style="width:auto;"> Pagó
-      </label>
+      <div class="pago-opts" id="d-pago">
+        <button type="button" data-p="pago">Pagó</button>
+        <button type="button" data-p="debe">No pagó</button>
+        <button type="button" data-p="gratis">Sin costo</button>
+      </div>
       <textarea id="d-nota" rows="3" placeholder="Nota de la clase (qué vieron, qué le falta practicar…)"></textarea>
     </div>
 
@@ -846,8 +853,8 @@ window.addEventListener('error', function(e){
     <div class="hidden" id="deleteConfirmBox" style="margin-top:12px;padding:12px;background:#fbeceb;border-radius:8px;">
       <div style="font-size:0.85rem;color:#7a2e22;margin-bottom:10px;" id="deleteConfirmText">¿Seguro?</div>
       <div style="display:flex;gap:8px;">
-        <button class="btn-ghost" id="cancelDeleteBtn" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;">Cancelar</button>
-        <button class="btn-primary" id="confirmDeleteBtn" style="flex:1;background:#b5432f;">Sí, eliminar</button>
+        <button class="btn-ghost" id="cancelDeleteBtn" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;padding:12px 8px;">Cancelar</button>
+        <button class="btn-primary" id="confirmDeleteBtn" style="flex:1;background:#b5432f;padding:12px 8px;font-weight:700;">Sí, eliminar</button>
       </div>
     </div>
 
@@ -2115,7 +2122,7 @@ function openDetail(id, dateISO){
   attSection.classList.toggle('hidden', !isClass);
   if(isClass){
     const reg = getRegistro(id, dateISO);
-    document.getElementById('d-paid').checked = reg.paid;
+    marcarPagoUI(reg);
     document.getElementById('d-nota').value = reg.nota || '';
     setRegistro(id, dateISO, reg); // queda guardado aunque no toques el checkbox
   }
@@ -2140,12 +2147,19 @@ function openDetail(id, dateISO){
 }
 
 // guardar el registro apenas se toca el checkbox
-document.getElementById('d-paid').addEventListener('change', (e)=>{
+function marcarPagoUI(reg){
+  const v = reg.paid === false ? 'debe' : (reg.sinCosto ? 'gratis' : 'pago');
+  document.querySelectorAll('#d-pago button').forEach(b=> b.classList.toggle('on', b.dataset.p === v));
+}
+document.querySelectorAll('#d-pago button').forEach(b=> b.addEventListener('click', ()=>{
   if(!detailId || !detailDate) return;
   const reg = getRegistro(detailId, detailDate);
-  setRegistro(detailId, detailDate, { ...reg, paid: e.target.checked });
+  const v = b.dataset.p, nuevo = { ...reg, paid: v !== 'debe' };
+  if(v === 'gratis') nuevo.sinCosto = true; else delete nuevo.sinCosto;
+  setRegistro(detailId, detailDate, nuevo);
+  marcarPagoUI(nuevo);
   renderCalendar();
-});
+}));
 
 function buildCancelMessage(evt, dateISO){
   return `Hola! Te aviso que la clase ${dayPhrase(dateISO)}, a las ${evt.startTime}hs, no la puedo realizar. A la brevedad me comunico para coordinar un nuevo horario.\n\nSaludos!`;
@@ -2233,7 +2247,9 @@ document.getElementById('deleteEventBtn').addEventListener('click', ()=>{
       : '¿Eliminar toda la serie, desde el principio? No se puede deshacer.';
   }
   document.getElementById('deleteConfirmText').textContent = msg;
-  document.getElementById('deleteConfirmBox').classList.remove('hidden');
+  const box = document.getElementById('deleteConfirmBox');
+  box.classList.remove('hidden');
+  setTimeout(()=> box.scrollIntoView({ block:'center', behavior:'smooth' }), 30);
 });
 
 document.getElementById('cancelDeleteBtn').addEventListener('click', ()=>{
@@ -2690,7 +2706,7 @@ let resMes = null;
 function statsDelMes(y, m){
   const total = new Date(y, m+1, 0).getDate();
   const hoyISO = toISODate(new Date());
-  const t = { dadas:0, cobradas:0, deben:0, porDar:0, canceladas:0 }, per = {};
+  const t = { dadas:0, cobradas:0, deben:0, porDar:0, canceladas:0, gratis:0 }, per = {};
   for(let d=1; d<=total; d++){
     const date = new Date(y, m, d), iso = toISODate(date);
     eventsForDate(date).filter(e=> e.type !== 'personal').forEach(e=>{
@@ -2700,7 +2716,8 @@ function statsDelMes(y, m){
       const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, deben:0, porDar:0 });
       if(iso < hoyISO){
         t.dadas++; p.dadas++;
-        if(getRegistro(e.id, iso).paid === false){ t.deben++; p.deben++; } else t.cobradas++;
+        const rg = getRegistro(e.id, iso);
+        if(rg.paid === false){ t.deben++; p.deben++; } else if(rg.sinCosto) t.gratis++; else t.cobradas++;
       } else { t.porDar++; p.porDar++; }
     });
   }
@@ -2717,7 +2734,12 @@ function renderResumen(){
     <div class="res-tile t-cob"><b>${t.cobradas}</b><span>Cobradas</span></div>
     <div class="res-tile t-debe"><b>${t.deben}</b><span>Por cobrar</span></div>
     <div class="res-tile t-dar"><b>${t.porDar}</b><span>Por dar</span></div></div>` +
-    (t.canceladas ? `<div style="font-size:0.78rem;color:var(--ink-soft);margin:-6px 0 12px;">Canceladas este mes: ${t.canceladas}</div>` : '');
+    ((t.canceladas || t.gratis) ? `<div style="font-size:0.78rem;color:var(--ink-soft);margin:-6px 0 12px;">${[t.gratis ? 'Sin costo: '+t.gratis : '', t.canceladas ? 'Canceladas: '+t.canceladas : ''].filter(Boolean).join(' · ')}</div>` : '');
+  const hoy = new Date(), dif = (y - hoy.getFullYear())*12 + (m - hoy.getMonth());
+  if(dif !== 0 && dif !== 1){
+    body.innerHTML += `<div style="color:var(--ink-soft);font-size:0.78rem;">${lista.length ? 'El detalle por alumno se muestra solo del mes actual y el siguiente.' : 'No hay clases este mes.'}</div>`;
+    return;
+  }
   if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases este mes.</div>'; return; }
   const head = document.createElement('div');
   head.className = 'res-row head';
@@ -3604,7 +3626,7 @@ function renderFichaExtras(){
       const row = document.createElement('div'); row.className = 'ledger-row';
       row.innerHTML = `<div style="font-family:var(--font-num);">${formatDMY(o.date).slice(0,5)}</div>` +
         `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime} · ${o.evt.type==='recurrente'?'Regular':'Consulta'}</div>` +
-        `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">debe</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
+        `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">debe</span>' : reg.sinCosto ? '<span class="pago">sin costo</span>' : '<span class="pago">pagó</span>') : ''}</div>`;
       const nota = getRegistro(o.evt.id, o.date).nota;
       if(nota){ const n = document.createElement('div'); n.className = 'ledger-nota'; n.textContent = nota; row.appendChild(n); }
       row.addEventListener('click', ()=>{
