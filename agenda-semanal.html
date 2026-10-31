@@ -2585,6 +2585,19 @@ document.getElementById('weekLabel').addEventListener('click', ()=>{
 });
 document.getElementById('calPrev').addEventListener('click', ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()-1, 1); renderMiniCal(); });
 document.getElementById('calNext').addEventListener('click', ()=>{ calMes = new Date(calMes.getFullYear(), calMes.getMonth()+1, 1); renderMiniCal(); });
+(function(){
+  // deslizar con el dedo: izquierda/arriba = mes siguiente, derecha/abajo = mes anterior
+  const m = calOverlay.querySelector('.modal'); let x0=0, y0=0;
+  m.addEventListener('touchstart', e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; }, {passive:true});
+  m.addEventListener('touchend', e=>{
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    const d = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+    if(Math.abs(d) < 40) return;
+    calMes = new Date(calMes.getFullYear(), calMes.getMonth() + (d < 0 ? 1 : -1), 1); renderMiniCal();
+  }, {passive:true});
+  m.addEventListener('wheel', e=>{ e.preventDefault(); if(m._w) return; m._w = setTimeout(()=>m._w=null, 250);
+    calMes = new Date(calMes.getFullYear(), calMes.getMonth() + (e.deltaY > 0 ? 1 : -1), 1); renderMiniCal(); }, {passive:false});
+})();
 document.getElementById('calHoyBtn').addEventListener('click', ()=>{ irAFecha(new Date()); calOverlay.classList.remove('open'); renderCalendar(); });
 document.getElementById('closeCalBtn').addEventListener('click', ()=> calOverlay.classList.remove('open'));
 calOverlay.addEventListener('click', (e)=>{ if(e.target === calOverlay) calOverlay.classList.remove('open'); });
