@@ -1545,6 +1545,7 @@ function drawClassBreaks(col){
   });
 }
 function drawBlockedSlots(col, dateISO){
+  return;   // los horarios bloqueados en Cupos ya no se pintan de gris en la agenda
   const dayStart = DAY_START_HOUR*60, dayEnd = DAY_END_HOUR*60;
   bloqueos.forEach(k=>{
     const [d, t] = k.split('|');
