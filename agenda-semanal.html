@@ -3710,8 +3710,8 @@ function renderFichaExtras(){
       const hd = document.createElement('div'); hd.className = 'ledger-sec'; hd.textContent = sec.titulo; led.appendChild(hd);
       sec.meses.forEach(m=>{
         const row = document.createElement('div'); row.className = 'ledger-row';
-        row.style.gridTemplateColumns = '1fr auto';
-        row.innerHTML = `<div>${escapeHtml(m.label)}</div><div style="color:var(--ink-soft);font-family:var(--font-num);">${m.total} clase${m.total===1?'':'s'} ›</div>`;
+        row.style.gridTemplateColumns = '1fr 104px';          // ancho fijo: entra bien hasta de 3 cifras
+        row.innerHTML = `<div>${escapeHtml(m.label)}</div><div style="color:var(--ink-soft);font-family:var(--font-num);text-align:right;white-space:nowrap;">${m.total} clase${m.total===1?'':'s'} ›</div>`;
         row.addEventListener('click', ()=>{ fichaVista = 'mes'; fichaMes = m.fecha; renderFichaExtras(); });   // tocar un mes lo abre al detalle
         led.appendChild(row);
       });
