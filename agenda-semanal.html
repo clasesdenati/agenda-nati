@@ -1113,6 +1113,7 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost hidden" id="cancelWaitEditBtn" style="width:100%;margin-bottom:12px;border:1px solid var(--line-strong);border-radius:8px;">Cancelar edición</button>
     <div style="margin-bottom:12px;"></div>
 
+    <div style="font-size:0.74rem;color:var(--ink-soft);margin-bottom:4px;">✎ Tocá un registro para editarlo.</div>
     <div id="waitlistList" style="font-size:0.85rem;"></div>
 
     <div class="modal-actions">
@@ -1423,11 +1424,21 @@ function renderCalendar(){
     taskRow.className = 'task-row';
     const tareasDia = eventsForDate(date).filter(e=>e.type==='personal');
     if(tareasDia.length){
-      const chip = document.createElement('div');
-      chip.className = 'task-chip';
-      chip.textContent = `📍 Tareas (${tareasDia.length})`;
-      chip.addEventListener('click', ()=> openTareas(toISODate(date)));
-      taskRow.appendChild(chip);
+      if(franja === 'manana'){            // vista de 10hs: una por una; en 14hs y Día, solo la cantidad
+        tareasDia.forEach(t=>{
+          const chip = document.createElement('div');
+          chip.className = 'task-chip';
+          chip.textContent = '📍 ' + String(t.title).replace(/\s*\n\s*/g, ' · ');
+          chip.addEventListener('click', ()=> openTareas(toISODate(date)));
+          taskRow.appendChild(chip);
+        });
+      } else {
+        const chip = document.createElement('div');
+        chip.className = 'task-chip';
+        chip.textContent = `📍 Tareas (${tareasDia.length})`;
+        chip.addEventListener('click', ()=> openTareas(toISODate(date)));
+        taskRow.appendChild(chip);
+      }
     }
     const isoD = toISODate(date);
     const conPrueba = alumnos.filter(a=> a.examen === isoD);
@@ -3237,10 +3248,10 @@ document.getElementById('addWaitlistBtn').addEventListener('click', ()=>{
 // arma las filas de una tanda de personas en espera (se usa en los dos modales)
 function buildWaitlistRow(entry, { recommend }){
   const row = document.createElement('div');
-  row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);';
+  row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 6px;border-bottom:1px solid var(--line);' + (entry.id === editWaitId ? 'background:#e1e6f0;border-radius:8px;' : '');
   row.innerHTML = `
     <div data-edit="${entry.id}" style="cursor:pointer;flex:1;min-width:0;">
-      <div style="font-weight:700;">${escapeHtml(entry.title)}${recommend ? ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.78rem;">(recomendado)</span>' : ''}</div>
+      <div style="font-weight:700;">${escapeHtml(entry.title)} <span style="font-weight:400;color:var(--ink-soft);">✎</span>${recommend ? ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.78rem;">(recomendado)</span>' : ''}</div>
       <div style="color:var(--ink-soft);font-size:0.78rem;">${formatDMY(entry.date)} · ${entry.startTime} a ${entry.endTime}</div>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -3287,6 +3298,7 @@ function renderWaitlistList(){
     wStartSelect.value = w.startTime; wEndSelect.value = w.endTime;
     document.getElementById('addWaitlistBtn').textContent = 'Guardar cambios';
     document.getElementById('cancelWaitEditBtn').classList.remove('hidden');
+    renderWaitlistList();
     document.getElementById('waitlistOverlay').querySelector('.modal').scrollTop = 0;
   }));
 }
