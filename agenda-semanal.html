@@ -1109,7 +1109,9 @@ window.addEventListener('error', function(e){
         <select id="w-end-h"></select>
       </div>
     </div>
-    <button class="btn-primary" id="addWaitlistBtn" style="width:100%;margin-bottom:20px;">+ Agregar a la lista</button>
+    <button class="btn-primary" id="addWaitlistBtn" style="width:100%;margin-bottom:8px;">+ Agregar a la lista</button>
+    <button class="btn-ghost hidden" id="cancelWaitEditBtn" style="width:100%;margin-bottom:12px;border:1px solid var(--line-strong);border-radius:8px;">Cancelar edición</button>
+    <div style="margin-bottom:12px;"></div>
 
     <div id="waitlistList" style="font-size:0.85rem;"></div>
 
@@ -2077,6 +2079,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   }
   // alumno que todavía no estaba en la lista: ir a completar su ficha
   if(alumnoPlan && alumnoPlan.mode === 'new') openAlumno(base.alumnoId, { evtId: base.id, date: toISODate(repDate), primera: true });
+  else if(isNew && currentType !== 'personal') openDetail(base.id, toISODate(repDate));   // clase nueva: queda a un toque de "Enviar aviso de reserva"
 });
 
 /* ---------------- Modal: detalle ---------------- */
@@ -3186,6 +3189,7 @@ function renderWaitSuggest(){
 document.getElementById('w-title').addEventListener('input', renderWaitSuggest);
 
 document.getElementById('waitlistBtn').addEventListener('click', ()=>{
+  resetWaitForm();
   document.getElementById('w-title').value = '';
   document.getElementById('wNameSuggest').classList.add('hidden');
   document.getElementById('w-date').value = toISODate(new Date());
@@ -3199,6 +3203,14 @@ document.getElementById('waitlistBtn').addEventListener('click', ()=>{
 document.getElementById('closeWaitlistBtn').addEventListener('click', ()=> waitlistOverlay.classList.remove('open'));
 document.getElementById('closeWaitlistMatchBtn').addEventListener('click', ()=> waitlistMatchOverlay.classList.remove('open'));
 
+let editWaitId = null;
+function resetWaitForm(){
+  editWaitId = null;
+  document.getElementById('w-title').value = '';
+  document.getElementById('addWaitlistBtn').textContent = '+ Agregar a la lista';
+  document.getElementById('cancelWaitEditBtn').classList.add('hidden');
+}
+document.getElementById('cancelWaitEditBtn').addEventListener('click', resetWaitForm);
 document.getElementById('addWaitlistBtn').addEventListener('click', ()=>{
   const title = document.getElementById('w-title').value.trim();
   const date = document.getElementById('w-date').value;
@@ -3208,12 +3220,15 @@ document.getElementById('addWaitlistBtn').addEventListener('click', ()=>{
   if(!date){ alert('Falta la fecha.'); return; }
   if(endTime <= startTime){ alert('La hora de fin tiene que ser después de la hora de inicio.'); return; }
 
-  waitlist.push({
+  const prev = editWaitId && waitlist.find(w=> w.id === editWaitId);
+  if(prev){ Object.assign(prev, { title, date, startTime, endTime }); }
+  else waitlist.push({
     id: 'wl_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     title, date, startTime, endTime,
     createdAt: Date.now(),
   });
   saveWaitlist();
+  resetWaitForm();
   document.getElementById('w-title').value = '';
   document.getElementById('wNameSuggest').classList.add('hidden');
   renderWaitlistList();
@@ -3224,7 +3239,7 @@ function buildWaitlistRow(entry, { recommend }){
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);';
   row.innerHTML = `
-    <div>
+    <div data-edit="${entry.id}" style="cursor:pointer;flex:1;min-width:0;">
       <div style="font-weight:700;">${escapeHtml(entry.title)}${recommend ? ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.78rem;">(recomendado)</span>' : ''}</div>
       <div style="color:var(--ink-soft);font-size:0.78rem;">${formatDMY(entry.date)} · ${entry.startTime} a ${entry.endTime}</div>
     </div>
@@ -3262,6 +3277,18 @@ function renderWaitlistList(){
     list.appendChild(buildWaitlistRow(entry, { recommend: firstForSlot && firstForSlot.id === entry.id }));
   });
   wireWaitlistRowButtons(list, renderWaitlistList);
+  // tocar un registro lo carga arriba para editarlo
+  list.querySelectorAll('[data-edit]').forEach(el=> el.addEventListener('click', ()=>{
+    const w = waitlist.find(x=> x.id === el.dataset.edit); if(!w) return;
+    editWaitId = w.id;
+    document.getElementById('w-title').value = w.title;
+    document.getElementById('w-date').value = w.date;
+    populateReferenceTimeSelect(wStartSelect, w.startTime);
+    wStartSelect.value = w.startTime; wEndSelect.value = w.endTime;
+    document.getElementById('addWaitlistBtn').textContent = 'Guardar cambios';
+    document.getElementById('cancelWaitEditBtn').classList.remove('hidden');
+    document.getElementById('waitlistOverlay').querySelector('.modal').scrollTop = 0;
+  }));
 }
 
 function checkWaitlistMatch(dateISO, startTime){
@@ -3749,6 +3776,7 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
       document.querySelectorAll('.event-block').forEach(el=>{
         if(el.dataset.eid === f.evtId && el.dataset.date === f.date) el.classList.add('flash');
       });
+      openDetail(f.evtId, f.date);
     }
   }
 });
@@ -3823,8 +3851,7 @@ function makeFichaImage(a, done){
   hline(TOP, x0, x4, RED, 2); hline(TOP + 5, x0, x4, RED, 2);
   let y = TOP + 8;
   c.fillStyle = BLUE; c.font = `600 15px ${UI}`;
-  spaced('FECHA', x0 + 12, y + HH/2 + 5, 3); spaced('DÍA Y HORA', x1 + 14, y + HH/2 + 5, 3);
-  vline(x1, y, y + HH);
+  spaced('DETALLE', x0 + 12, y + HH/2 + 5, 3);
   y += HH; hline(y, x0, x4, RED, 2.5);
 
   secs.forEach(sec=>{
