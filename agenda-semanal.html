@@ -356,6 +356,7 @@
   }
   .type-recurrente{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#203864; }
   .type-aislada{ background:var(--agenda-bg); border-left-color:var(--agenda); color:#1b5a9e; }
+  .event-block.avisado{ outline:2px solid #2A9D8F; outline-offset:-2px; }
   .event-block.debe{ background:#fbe3e3; border-left-color:#C94C4C; color:#8a2f2f; }
   .type-personal{ background:var(--personal-bg); border-left-color:var(--personal); color:#12504a; }
 
@@ -821,6 +822,7 @@ window.addEventListener('error', function(e){
     </div>
 
     <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
+    <button class="btn-ghost hidden" id="confirmoBtn" style="width:100%;margin-top:8px;border:1.5px solid #2A9D8F;border-radius:8px;color:#1d6f65;font-weight:600;">✓ Me confirmó (quitar borde verde)</button>
     <button class="share-btn hidden" id="reservaBtn" style="margin-top:8px;background:var(--brand);">Enviar aviso de reserva</button>
     <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Enviar deberes</button>
     <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
@@ -1615,7 +1617,7 @@ function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
   const startMin = Math.max(minutesOf(evt.startTime) - DAY_START_HOUR*60, 0);
   const endMin = Math.min(minutesOf(evt.endTime) - DAY_START_HOUR*60, totalMin);
   if(endMin <= startMin) return null;                  // fuera de la franja que se está viendo
-  { const rg = getRegistro(evt.id, dateISO); if(rg.cancelada) el.classList.add('cancelada'); else if(rg.paid === false) el.classList.add('debe'); }
+  { const rg = getRegistro(evt.id, dateISO); if(rg.cancelada) el.classList.add('cancelada'); else if(rg.paid === false) el.classList.add('debe'); if(rg.avisado && !rg.cancelada) el.classList.add('avisado'); }
   const ownTop = startMin*pxPerMin;
   const ownHeight = Math.max((endMin-startMin)*pxPerMin, 14);
 
@@ -2146,6 +2148,7 @@ function openDetail(id, dateISO){
   if(isClass){
     const reg = getRegistro(id, dateISO);
     marcarPagoUI(reg);
+    document.getElementById('confirmoBtn').classList.toggle('hidden', !reg.avisado || reg.cancelada);
     document.getElementById('d-nota').value = reg.nota || '';
     setRegistro(id, dateISO, reg); // queda guardado aunque no toques el checkbox
   }
@@ -2207,6 +2210,13 @@ document.getElementById('cancelAvisarBtn').addEventListener('click', ()=>{
   detailOverlay.classList.remove('open');
 });
 
+document.getElementById('confirmoBtn').addEventListener('click', ()=>{
+  if(!detailId || !detailDate) return;
+  const r = { ...getRegistro(detailId, detailDate) }; delete r.avisado;
+  setRegistro(detailId, detailDate, r);
+  document.getElementById('confirmoBtn').classList.add('hidden');
+  renderCalendar();
+});
 document.getElementById('d-nota').addEventListener('input', (e)=>{
   if(!detailId || !detailDate) return;
   const reg = getRegistro(detailId, detailDate);
