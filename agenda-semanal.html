@@ -181,7 +181,7 @@
   }
   .task-row-label{
     border-bottom:1px solid var(--line-strong);
-    background:var(--panel);
+    background:var(--bg);
     font-size:0.58rem;
     color:var(--ink-soft);
     text-align:right;
@@ -809,7 +809,7 @@ window.addEventListener('error', function(e){
     <div class="detail-time" id="d-day"></div>
     <div class="detail-loc" id="d-loc"></div>
     <div class="detail-notes" id="d-notes"></div>
-    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 12px;border:1px solid var(--line-strong);border-radius:16px;font-size:0.78rem;">Ver ficha</button>
+    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 12px;border:1px solid var(--line-strong);border-radius:16px;font-size:0.78rem;">Ficha</button>
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
       <div class="pago-opts" id="d-pago">
@@ -930,8 +930,8 @@ window.addEventListener('error', function(e){
 
     <div class="modal-actions">
       <button class="btn-ghost hidden" id="fa-delete">Eliminar ficha</button>
-      <button class="btn-ghost" id="fa-close">Cerrar</button>
       <button class="btn-primary" id="fa-save">Guardar</button>
+      <button class="btn-ghost" id="fa-close">Cerrar</button>
     </div>
   </div>
 </div>
@@ -3616,7 +3616,6 @@ function renderFichaExtras(){
   const debe = past.filter(o=> getRegistro(o.evt.id, o.date).paid === false).length;
   const horario = alumnoSchedule(id);
   resumen.innerHTML =
-    (horario ? `<div><b>Horario fijo:</b> ${escapeHtml(horario)}</div>` : '') +
     `<div><b>Clases dadas:</b> ${pastDadas.length}</div>` +
     (debe ? `<div style="color:#C94C4C;"><b>Debe:</b> ${debe} clase${debe===1?'':'s'}</div>` : `<div><b>Pagos:</b> al día</div>`);
 
