@@ -194,7 +194,7 @@
     will-change:transform;
   }
   .task-row{
-    border-left:1px solid var(--line);
+    border-left:4px solid var(--bg);
     border-bottom:1px solid var(--line-strong);
     padding:3px;
     display:flex;
@@ -218,7 +218,7 @@
   .day-head{
     padding:6px 4px;
     text-align:center;
-    border-left:1px solid var(--line);
+    border-left:4px solid var(--bg);
     border-bottom:1px solid var(--line-strong);
     background:var(--panel);
   }
@@ -267,7 +267,7 @@
 
   .day-col{
     position:relative;
-    border-left:1px solid var(--line);
+    border-left:4px solid var(--bg);
     display:flex;
     flex-direction:column;
     height:100%;
@@ -280,8 +280,8 @@
   .hour-line:first-child{ border-top:none; }
 
   .class-cut{
-    position:absolute; left:0; right:0; height:0;
-    border-top:1px solid rgba(100,92,70,.38);
+    position:absolute; left:0; right:0; height:4px; margin-top:-2px;
+    background:var(--bg);      /* mismo gris que la columna de horas: separa un horario de otro */
     z-index:4;
     pointer-events:none;
   }
@@ -1623,8 +1623,9 @@ function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
 
   // Varios al mismo horario: siempre en lista vertical, uno debajo del otro
   // (nunca lado a lado), cada uno en su propio renglón con el nombre completo.
-  const sliceHeight = ownHeight / colCount;
-  el.style.top = (ownTop + col*sliceHeight) + 'px';
+  const GAP = 2;                       // margen arriba y abajo del grupo, para que la franja gris no tape el nombre
+  const sliceHeight = (ownHeight - 2*GAP) / colCount;
+  el.style.top = (ownTop + GAP + col*sliceHeight) + 'px';
   el.style.height = Math.max(sliceHeight - 1, 12) + 'px';
 
   el.dataset.eid = evt.id;
