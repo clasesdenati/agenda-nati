@@ -24,6 +24,7 @@
     --brand: #203864;
     --recurrente: #2A9D8F;
     --recurrente-bg: #dff1ee;
+    --sep: #ffffff;              /* color de las franjas entre horarios y días (antes gris: var(--bg)) */
     --aislada: #E9B949;
     --aislada-bg: #fbf0d2;
     --agenda: #203864;
@@ -194,7 +195,7 @@
     will-change:transform;
   }
   .task-row{
-    border-left:4px solid var(--bg);
+    border-left:4px solid var(--sep);
     border-bottom:1px solid var(--line-strong);
     padding:3px;
     display:flex;
@@ -218,7 +219,7 @@
   .day-head{
     padding:6px 4px;
     text-align:center;
-    border-left:4px solid var(--bg);
+    border-left:4px solid var(--sep);
     border-bottom:1px solid var(--line-strong);
     background:var(--panel);
   }
@@ -267,7 +268,7 @@
 
   .day-col{
     position:relative;
-    border-left:4px solid var(--bg);
+    border-left:4px solid var(--sep);
     display:flex;
     flex-direction:column;
     height:100%;
@@ -281,7 +282,7 @@
 
   .class-cut{
     position:absolute; left:0; right:0; height:4px; margin-top:-2px;
-    background:var(--bg);      /* mismo gris que la columna de horas: separa un horario de otro */
+    background:var(--sep);      /* franja que separa un horario de otro */
     z-index:4;
     pointer-events:none;
   }
