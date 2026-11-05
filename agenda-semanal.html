@@ -235,6 +235,7 @@
     font-weight:600;
   }
   .day-head.is-today .dnum{ color:var(--recurrente); }
+  .day-head.is-today, .task-row.hoy, .day-col.hoy{ background:#e6f4f1; }   /* hoy: todo el día con una sombra verde suave */
   .corner{
     border-bottom:1px solid var(--line-strong);
     background:var(--bg);
@@ -568,22 +569,25 @@
 
   /* resumen del mes */
   .pago-opts{ display:flex; gap:6px; }
-  .pago-opts button{ flex:1; padding:9px 4px; border-radius:20px; border:1.5px solid var(--line-strong); background:#fff; font-family:var(--font-ui); font-size:0.82rem; color:var(--ink); cursor:pointer; }
+  .pago-opts button{ flex:1; padding:9px 2px; border-radius:20px; border:1.5px solid var(--line-strong); background:#fff; font-family:var(--font-ui); font-size:0.76rem; white-space:nowrap; color:var(--ink); cursor:pointer; }
   .pago-opts button.on[data-p="pago"]{ background:#dff1ee; border-color:#2A9D8F; color:#12504a; font-weight:600; }
+  .pago-opts button.on[data-p="transf"]{ background:#d6e8fb; border-color:#2F7FD1; color:#1b5a9e; font-weight:600; }
   .pago-opts button.on[data-p="debe"]{ background:#fbe3e3; border-color:#C94C4C; color:#8a2f2f; font-weight:600; }
   .pago-opts button.on[data-p="gratis"]{ background:#e1e6f0; border-color:#203864; color:#203864; font-weight:600; }
   .res-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:12px; }
   .res-nav button{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; font-size:1.1rem; cursor:pointer; color:var(--ink); }
   .res-nav span{ font-weight:700; color:var(--brand); min-width:130px; text-align:center; }
   .res-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
-  .res-tiles3{ grid-template-columns:1fr 1fr 1fr; }
-  .res-tiles3 .res-tile{ padding:10px 8px; }
+  .res-tiles3{ grid-template-columns:repeat(4,1fr); gap:6px; }
+  .res-tiles3 .res-tile{ padding:10px 6px; }
+  .res-tiles3 .res-tile b{ font-size:1.3rem; }
   .res-tiles3 .res-tile span{ font-size:0.62rem; letter-spacing:.02em; white-space:nowrap; }
   .res-tile{ border-radius:10px; padding:10px 12px; background:var(--line); }
   .res-tile b{ display:block; font-size:1.5rem; font-family:var(--font-num); line-height:1.1; }
   .res-tile span{ font-size:0.72rem; letter-spacing:.04em; text-transform:uppercase; }
   .res-tile.t-dadas{ background:#e1e6f0; color:#203864; }
   .res-tile.t-cob{ background:#dff1ee; color:#12504a; }
+  .res-tile.t-transf{ background:#d6e8fb; color:#1b5a9e; }
   .res-tile.t-debe{ background:#fbe3e3; color:#C94C4C; }
   .res-tile.t-dar{ background:#eceef0; color:#4b5259; }
   .res-row{ display:grid; grid-template-columns:1fr 40px 40px 54px; gap:4px; padding:7px 4px; border-bottom:1px solid var(--line); font-size:0.84rem; cursor:pointer; align-items:center; }
@@ -815,7 +819,8 @@ window.addEventListener('error', function(e){
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
       <div class="pago-opts" id="d-pago">
-        <button type="button" data-p="pago">Pagó</button>
+        <button type="button" data-p="pago">Efectivo</button>
+        <button type="button" data-p="transf">Transfer.</button>
         <button type="button" data-p="debe">No pagó</button>
         <button type="button" data-p="gratis">Sin costo</button>
       </div>
@@ -1424,7 +1429,7 @@ function renderCalendar(){
 
   visibleDates.forEach(date=>{
     const taskRow = document.createElement('div');
-    taskRow.className = 'task-row';
+    taskRow.className = 'task-row' + (sameDate(date, today) ? ' hoy' : '');
     const tareasDia = eventsForDate(date).filter(e=>e.type==='personal');
     if(tareasDia.length){
       if(franja === 'manana'){            // vista de 10hs: una por una; en 14hs y Día, solo la cantidad
@@ -1512,6 +1517,7 @@ function renderCalendar(){
 
     if(sameDate(date, today)){
       col.dataset.today = '1';
+      col.classList.add('hoy');
       col.dataset.ppm = pxPerMin;
     }
   });
@@ -2176,7 +2182,7 @@ function openDetail(id, dateISO){
 
 // guardar el registro apenas se toca el checkbox
 function marcarPagoUI(reg){
-  const v = reg.paid === false ? 'debe' : (reg.sinCosto ? 'gratis' : 'pago');
+  const v = reg.paid === false ? 'debe' : (reg.sinCosto ? 'gratis' : reg.transf ? 'transf' : 'pago');
   document.querySelectorAll('#d-pago button').forEach(b=> b.classList.toggle('on', b.dataset.p === v));
 }
 document.querySelectorAll('#d-pago button').forEach(b=> b.addEventListener('click', ()=>{
@@ -2184,6 +2190,7 @@ document.querySelectorAll('#d-pago button').forEach(b=> b.addEventListener('clic
   const reg = getRegistro(detailId, detailDate);
   const v = b.dataset.p, nuevo = { ...reg, paid: v !== 'debe' };
   if(v === 'gratis') nuevo.sinCosto = true; else delete nuevo.sinCosto;
+  if(v === 'transf') nuevo.transf = true; else delete nuevo.transf;
   setRegistro(detailId, detailDate, nuevo);
   marcarPagoUI(nuevo);
   renderCalendar();
@@ -2745,7 +2752,7 @@ function resRango(){
 // Clases ya dadas (días pasados, y las de hoy cuya hora ya empezó) del rango
 function statsRango(ini, fin){
   const ahora = new Date(), hoyISO = toISODate(ahora), minAhora = ahora.getHours()*60 + ahora.getMinutes();
-  const t = { pagos:0, debe:0, gratis:0 }, per = {};
+  const t = { pagos:0, transf:0, debe:0, gratis:0 }, per = {};
   for(let d = new Date(ini); d <= fin; d = addDays(d, 1)){
     const iso = toISODate(d);
     if(iso > hoyISO) break;
@@ -2757,7 +2764,7 @@ function statsRango(ini, fin){
       const key = al ? al.id : 'n_'+e.title;
       const p = per[key] || (per[key] = { id: al ? al.id : null, nombre: al ? al.nombre : e.title, dadas:0, debe:0 });
       p.dadas++;
-      if(rg.paid === false){ t.debe++; p.debe++; } else if(rg.sinCosto) t.gratis++; else t.pagos++;
+      if(rg.paid === false){ t.debe++; p.debe++; } else if(rg.sinCosto) t.gratis++; else if(rg.transf) t.transf++; else t.pagos++;
     });
   }
   return { t, lista: Object.values(per).sort((a,b)=> b.dadas - a.dadas || a.nombre.localeCompare(b.nombre,'es')) };
@@ -2774,7 +2781,8 @@ function renderResumen(){
   const { t, lista } = statsRango(ini, fin);
   const body = document.getElementById('resBody');
   body.innerHTML = `<div class="res-tiles res-tiles3">
-    <div class="res-tile t-cob"><b>${t.pagos}</b><span>Pagos</span></div>
+    <div class="res-tile t-cob"><b>${t.pagos}</b><span>Efectivo</span></div>
+    <div class="res-tile t-transf"><b>${t.transf}</b><span>Transfer.</span></div>
     <div class="res-tile t-debe"><b>${t.debe}</b><span>Sin pagar</span></div>
     <div class="res-tile t-dadas"><b>${t.gratis}</b><span>Sin costo</span></div></div>`;
   if(resModo !== 'mes') return;
@@ -3265,6 +3273,10 @@ function buildWaitlistRow(entry, { recommend }){
     <div data-edit="${entry.id}" style="cursor:pointer;flex:1;min-width:0;">
       <div style="font-weight:700;">${escapeHtml(entry.title)} <span style="font-weight:400;color:var(--ink-soft);">✎</span>${recommend ? ' <span style="font-weight:400;color:var(--ink-soft);font-size:0.78rem;">(recomendado)</span>' : ''}</div>
       <div style="color:var(--ink-soft);font-size:0.78rem;">${formatDMY(entry.date)} · ${entry.startTime} a ${entry.endTime}</div>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <button data-wa="${entry.id}" style="border:1.5px solid #2A9D8F;border-radius:14px;background:#fff;color:#1d6f65;padding:4px 10px;font-size:0.76rem;font-weight:600;cursor:pointer;">WhatsApp</button>
+        <button data-ficha="${entry.id}" style="border:1px solid var(--line-strong);border-radius:14px;background:#fff;padding:4px 10px;font-size:0.76rem;cursor:pointer;">Ficha</button>
+      </div>
     </div>
     <div style="display:flex;gap:6px;flex-shrink:0;">
       <button data-convert="${entry.id}" style="border:1px solid var(--line-strong);border-radius:8px;background:#fff;padding:6px 8px;font-size:0.76rem;cursor:pointer;">Convertir a Consulta</button>
@@ -3274,7 +3286,28 @@ function buildWaitlistRow(entry, { recommend }){
   return row;
 }
 
+function waitAlumno(entry){ return findAlumnoByName(entry.title); }
 function wireWaitlistRowButtons(container, afterChange){
+  container.querySelectorAll('button[data-wa]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const w = waitlist.find(x=> x.id === btn.dataset.wa); if(!w) return;
+      const al = waitAlumno(w), num = al ? waPhone(al.telefono) : '';
+      if(!num){ alert(al ? `${al.nombre} no tiene teléfono en su ficha. Tocá "Ficha" para agregarlo.` : `No encontré la ficha de ${w.title}. Agregalo en Alumnos con su teléfono.`); return; }
+      const txt = `Hola! Se liberó un lugar ${dayPhrase(w.date)}, a las ${w.startTime}hs. ¿Querés tomarlo?\n\nSaludos!`;
+      window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(txt), '_blank');
+    });
+  });
+  container.querySelectorAll('button[data-ficha]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const w = waitlist.find(x=> x.id === btn.dataset.ficha); if(!w) return;
+      const al = waitAlumno(w);
+      if(!al){ alert(`No encontré la ficha de ${w.title}. Agregalo en Alumnos con su teléfono.`); return; }
+      waitlistOverlay.classList.remove('open'); waitlistMatchOverlay.classList.remove('open');
+      openAlumno(al.id);
+    });
+  });
   container.querySelectorAll('button[data-convert]').forEach(btn=>{
     btn.addEventListener('click', ()=> convertWaitlistToExtra(btn.dataset.convert));
   });
@@ -3704,7 +3737,7 @@ function renderFichaExtras(){
       const row = document.createElement('div'); row.className = 'ledger-row';
       row.innerHTML = `<div style="font-family:var(--font-num);">${formatDMY(o.date).slice(0,5)}</div>` +
         `<div>${DOW_SHORT[d.getDay()]} · ${o.evt.startTime}</div>` +
-        `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">no</span>' : reg.sinCosto ? '<span style="color:var(--ink-soft);">–</span>' : '<span class="pago">sí</span>') : ''}</div>`;
+        `<div>${getRegistro(o.evt.id, o.date).cancelada ? '<span style="color:var(--ink-soft);font-size:0.68rem;">cancel.</span>' : reg ? (reg.paid === false ? '<span class="debe">no</span>' : reg.sinCosto ? '<span style="color:var(--ink-soft);">–</span>' : reg.transf ? '<span style="color:#1b5a9e;font-size:0.7rem;font-weight:600;">transf.</span>' : '<span class="pago">sí</span>') : ''}</div>`;
       const nota = getRegistro(o.evt.id, o.date).nota;
       if(nota){ const n = document.createElement('div'); n.className = 'ledger-nota'; n.textContent = nota; row.appendChild(n); }
       row.addEventListener('click', ()=>{
