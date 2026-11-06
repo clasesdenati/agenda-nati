@@ -1459,11 +1459,21 @@ function renderCalendar(){
     }
     const fuera = eventsForDate(date).filter(e=> e.type !== 'personal' && fueraDeAgenda(e));
     if(fuera.length){
-      const chipX = document.createElement('div');
-      chipX.className = 'task-chip extra';
-      chipX.textContent = `⏰ Extra (${fuera.length})`;
-      chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
-      taskRow.appendChild(chipX);
+      if(franja === 'manana'){            // vista de 10hs: una por una (hora y nombre); en 14hs y Día, solo la cantidad
+        fuera.slice().sort((a,b)=> a.startTime.localeCompare(b.startTime)).forEach(x=>{
+          const chipX = document.createElement('div');
+          chipX.className = 'task-chip extra';
+          chipX.textContent = `⏰ ${x.startTime} ${String(x.title).replace(/\s*\n\s*/g, ' · ')}`;
+          chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
+          taskRow.appendChild(chipX);
+        });
+      } else {
+        const chipX = document.createElement('div');
+        chipX.className = 'task-chip extra';
+        chipX.textContent = `⏰ Extra (${fuera.length})`;
+        chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
+        taskRow.appendChild(chipX);
+      }
     }
     taskRow.addEventListener('click', (e)=>{
       if(e.target.closest('.task-chip')) return;
