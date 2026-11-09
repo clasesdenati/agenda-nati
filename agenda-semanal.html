@@ -1157,10 +1157,10 @@ window.addEventListener('error', function(e){
    muestran apilados uno arriba del otro (no en columnas).
    ============================================================ */
 
-const DIA_INI = 10, DIA_FIN = 18.5;             // rango que muestra la agenda (de 10:00 a 18:30)
+const DIA_INI = 10.5, DIA_FIN = 18;             // rango que muestra la agenda (de 10:30 a 18:00); lo de fuera va en "Extra"
 const VAL_INI = 7, VAL_FIN = 21;                // horas permitidas al guardar una clase (las de fuera del rango van en "Extra")
 let DAY_START_HOUR = DIA_INI, DAY_END_HOUR = DIA_FIN;   // rango que se está viendo (Mañana / Tarde / Día)
-const FRANJAS = { manana:[10,14], tarde:[14,18.5], dia:[10,18.5] };
+const FRANJAS = { manana:[10.5,14], tarde:[14,18], dia:[10.5,18] };
 let franja = 'dia';                              // al abrir siempre arranca en "Día"; después elegís 10hs o 14hs
 DAY_START_HOUR = FRANJAS[franja][0]; DAY_END_HOUR = FRANJAS[franja][1];
 // si estás viendo Mañana y la clase es de tarde (o al revés), pasa a la franja que corresponde; "Día" no se toca
@@ -1484,11 +1484,13 @@ function renderCalendar(){
 
   const timeCol = document.createElement('div');
   timeCol.className = 'time-col';
-  for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
+  for(let h=Math.floor(DAY_START_HOUR); h<DAY_END_HOUR; h++){
+    const desde = Math.max(h, DAY_START_HOUR), len = Math.min(h+1, DAY_END_HOUR) - desde;
     const slot = document.createElement('div');
     slot.className = 'time-slot';
-    if(DAY_END_HOUR - h < 1) slot.style.flex = String(DAY_END_HOUR - h);   // última fila de media hora
-    slot.textContent = String(h).padStart(2,'0')+':00';
+    if(len < 1) slot.style.flex = String(len);                 // fila parcial (primera o última)
+    slot.dataset.desde = String(Math.round(desde*60));
+    slot.textContent = pad2(Math.floor(desde)) + ':' + pad2(Math.round((desde % 1)*60));
     timeCol.appendChild(slot);
   }
   decorateTimeCol(timeCol);
@@ -1499,10 +1501,11 @@ function renderCalendar(){
   visibleDates.forEach(date=>{
     const col = document.createElement('div');
     col.className = 'day-col';
-    for(let h=DAY_START_HOUR; h<DAY_END_HOUR; h++){
+    for(let h=Math.floor(DAY_START_HOUR); h<DAY_END_HOUR; h++){
       const line = document.createElement('div');
       line.className = 'hour-line';
-      if(DAY_END_HOUR - h < 1) line.style.flex = String(DAY_END_HOUR - h);
+      const lenL = Math.min(h+1, DAY_END_HOUR) - Math.max(h, DAY_START_HOUR);
+      if(lenL < 1) line.style.flex = String(lenL);
       col.appendChild(line);
     }
     cal.appendChild(col);
@@ -1518,7 +1521,7 @@ function renderCalendar(){
       // la hora del renglón tocado (si ahí cae un horario de Cupos, ese; si no, la hora en punto)
       const h0 = Math.floor(tapped/60)*60;
       const ref = refMinutes().find(r => r >= h0 && r < h0+60);
-      const hora = ref != null ? minutesToTime(ref) : minutesToTime(h0);
+      const hora = ref != null ? minutesToTime(ref) : minutesToTime(Math.max(h0, DAY_START_HOUR*60));
       openNewAt('aislada', toISODate(date), hora, ref == null);
     });
     drawClassBreaks(col);
@@ -1597,12 +1600,12 @@ function decorateTimeCol(timeCol){
   if(CAMBIO_CLASE_MODO !== 'lineas') return;
   const refs = refMinutes();
   timeCol.querySelectorAll('.time-slot').forEach((slot, idx)=>{
-    const h = DAY_START_HOUR + idx;
+    const h = (+slot.dataset.desde) / 60;
     if(refs.includes(h*60)) slot.classList.add('is-ref');
     else slot.classList.add('dim');
   });
   refs.forEach(m=>{
-    if(m % 60 === 0 || m < DAY_START_HOUR*60 || m >= DAY_END_HOUR*60) return;
+    if(m % 60 === 0 || m <= DAY_START_HOUR*60 || m >= DAY_END_HOUR*60) return;
     const lab = document.createElement('div');
     lab.className = 'time-slot is-ref ref-extra';
     lab.style.top = pctOfDay(m) + '%';
