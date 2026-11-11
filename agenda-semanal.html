@@ -857,7 +857,7 @@ window.addEventListener('error', function(e){
     <button class="btn-ghost hidden" id="confirmoBtn" style="width:100%;margin-top:8px;border:1.5px solid #2A9D8F;border-radius:8px;color:#1d6f65;font-weight:600;">✓ Me confirmó (quitar borde verde)</button>
     <button class="share-btn hidden" id="reservaBtn" style="margin-top:8px;background:var(--brand);">Enviar aviso de reserva</button>
     <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Abrir WhatsApp</button>
-    <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
+    <div class="share-hint hidden" id="shareHint" style="display:none;"></div>
 
     <div class="cancel-box hidden" id="cancelBox">
       <b>Clase cancelada</b>
@@ -865,17 +865,14 @@ window.addEventListener('error', function(e){
     </div>
     <div class="field hidden" id="cancelField" style="margin-top:14px;">
       <button class="btn-ghost" id="cancelarClaseBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">✕ Cancelar esta clase</button>
-      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Solo ese día. Después podés avisarle por WhatsApp.</div>
     </div>
 
     <div class="field" id="duplicateField" style="margin-top:14px;">
       <button class="btn-ghost" id="duplicateBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">⧉ Duplicar</button>
-      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Abre una copia para cambiarle el nombre o la fecha.</div>
     </div>
 
     <div class="field hidden" id="rescheduleField" style="margin-top:14px;">
       <button class="btn-ghost" id="rescheduleBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">↔️ Cambiar este día</button>
-      <div style="font-size:0.72rem;color:var(--ink-soft);margin-top:6px;text-align:center;">Se saca la clase normal ese día y te dejo un evento Consulta para que pongas el nuevo horario o día. Las demás semanas siguen igual.</div>
     </div>
 
     <div class="field hidden" id="deleteScopeField" style="margin-top:14px;">
@@ -941,8 +938,20 @@ window.addEventListener('error', function(e){
     <div class="hidden" id="fa-notas-wrap"><div class="ficha-section" style="margin-top:12px;">Notas</div>
     <textarea id="fa-notas" rows="3"></textarea></div>
 
-    <button class="btn-ghost hidden" id="fa-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
+    <button class="btn-ghost hidden" id="fa-wa" style="display:none;width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:6px;">Abrir chat de WhatsApp</button>
 
+    <div class="modal-actions">
+      <button class="btn-ghost" id="fa-clases" style="border:1.5px solid var(--brand);color:var(--brand);border-radius:20px;font-weight:600;">Clases</button>
+      <button class="btn-primary" id="fa-save">Guardar</button>
+      <button class="btn-ghost hidden" id="fa-close">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: clases del alumno (resumen, historial, unir fichas) ============ -->
+<div class="overlay" id="fichaClasesOverlay">
+  <div class="modal">
+    <h2>Clases</h2>
     <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
     <button class="btn-ghost hidden" id="fa-resumen-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin:8px 0 0;">Enviar resumen de clases (imagen)</button>
     <div id="fa-resumen-msg" style="font-size:0.74rem;color:var(--ink-soft);margin-top:6px;"></div>
@@ -964,8 +973,7 @@ window.addEventListener('error', function(e){
 
     <div class="modal-actions">
       <button class="btn-ghost hidden" id="fa-delete">Eliminar ficha</button>
-      <button class="btn-primary" id="fa-save">Guardar</button>
-      <button class="btn-ghost hidden" id="fa-close">Cerrar</button>
+      <button class="btn-primary" id="fa-clases-close">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1767,7 +1775,9 @@ function snapToStep(hhmm){
   return minutesToTime(mins);
 }
 
+let pendingReschedule = null;     // "Cambiar este día": la clase original solo se saca cuando se guarda la nueva
 function openEditModal(existing, asCopy){
+  pendingReschedule = null;
   editingId = (existing && !asCopy) ? existing.id : null;
   document.getElementById('editModalTitle').textContent = asCopy ? 'Duplicar evento' : 'Nuevo evento';
   // vínculo con la ficha: al editar se puede "corregir el nombre"; en una copia no
@@ -2079,6 +2089,16 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   } else {
     events.push(base);
   }
+  if(isNew && pendingReschedule){
+    // ahora sí: sacar la clase normal de ese día puntual (la rutina sigue las demás semanas)
+    const orig = events.find(e=> e.id === pendingReschedule.id);
+    if(orig){
+      orig.excludedDates = orig.excludedDates || [];
+      if(!orig.excludedDates.includes(pendingReschedule.date)) orig.excludedDates.push(pendingReschedule.date);
+      setRegistro(orig.id, pendingReschedule.date, { ...getRegistro(orig.id, pendingReschedule.date), attended:true });
+    }
+    pendingReschedule = null;
+  }
   saveEvents();
   editOverlay.classList.remove('open');
   if(isNew){
@@ -2244,20 +2264,16 @@ document.getElementById('rescheduleBtn').addEventListener('click', ()=>{
   const evt = events.find(e=>e.id===detailId);
   if(!evt || evt.type !== 'recurrente') return;
 
-  // sacar la clase normal de ese día puntual (la rutina sigue las demás semanas)
-  evt.excludedDates = evt.excludedDates || [];
-  if(!evt.excludedDates.includes(detailDate)) evt.excludedDates.push(detailDate);
-  const reg = getRegistro(detailId, detailDate);
-  setRegistro(detailId, detailDate, { ...reg, attended:true });
-  saveEvents();
+  // la clase normal de ese día NO se saca todavía: recién cuando guardes la nueva
+  const reprog = { id: evt.id, date: detailDate };
 
   // armar un evento Extra pre-cargado con el mismo día y horario, para que
   // ella cambie lo que corresponda (el horario, el día, o ambos) y lo guarde
   const title = evt.title, notes = evt.notes, startTime = evt.startTime, endTime = evt.endTime, alId = evt.alumnoId;
   detailOverlay.classList.remove('open');
-  renderCalendar();
 
   openEditModal(null);
+  pendingReschedule = reprog;
   setType('aislada');
   document.getElementById('f-title').value = title;
   setPickedAlumno(alId);
@@ -3848,6 +3864,12 @@ function renderFichaExtras(){
   }
 }
 
+const fichaClasesOverlay = document.getElementById('fichaClasesOverlay');
+document.getElementById('fa-clases').addEventListener('click', ()=>{ renderFichaExtras(); fichaClasesOverlay.classList.add('open'); fichaClasesOverlay.querySelector('.modal').scrollTop = 0; });
+document.getElementById('fa-clases-close').addEventListener('click', ()=> fichaClasesOverlay.classList.remove('open'));
+fichaClasesOverlay.addEventListener('click', (e)=>{ if(e.target === fichaClasesOverlay) fichaClasesOverlay.classList.remove('open'); });
+// si la ficha se cierra (guardar, eliminar, tocar afuera), la ventanita de clases también
+new MutationObserver(()=>{ if(!fichaOverlay.classList.contains('open')) fichaClasesOverlay.classList.remove('open'); }).observe(fichaOverlay, { attributes:true, attributeFilter:['class'] });
 document.getElementById('fa-save').addEventListener('click', ()=>{
   const nombre = document.getElementById('fa-nombre').value.trim();
   if(!nombre){ alert('Falta el nombre del alumno.'); return; }
