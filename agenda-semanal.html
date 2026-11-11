@@ -2822,7 +2822,7 @@ function renderResumen(){
   body.appendChild(cajaEl);
   actualizarCaja();
   if(resModo !== 'mes') return;
-  if(!lista.length){ body.innerHTML += '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases dadas este mes.</div>'; return; }
+  if(!lista.length){ body.insertAdjacentHTML('beforeend', '<div style="color:var(--ink-soft);font-size:0.85rem;">No hay clases dadas este mes.</div>'); return; }
   const tit = document.createElement('div');
   tit.style.cssText = 'font-size:0.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin:4px 0 2px;';
   tit.textContent = 'Top 5 de alumnos';
@@ -2859,8 +2859,14 @@ document.querySelectorAll('#resTabs button').forEach(b=> b.addEventListener('cli
 }));
 document.getElementById('resPrev').addEventListener('click', ()=> resMover(-1));
 document.getElementById('resNext').addEventListener('click', ()=> resMover(1));
-document.getElementById('closeResumenBtn').addEventListener('click', ()=> resumenOverlay.classList.remove('open'));
-resumenOverlay.addEventListener('click', (e)=>{ if(e.target === resumenOverlay) resumenOverlay.classList.remove('open'); });
+function cerrarResumen(){
+  resumenOverlay.classList.remove('open');
+  caja = { saldo:0, precio:0, anterior:0 };      // los datos de caja se borran al salir del Resumen
+  saveCaja();
+  cajaEl = null;
+}
+document.getElementById('closeResumenBtn').addEventListener('click', cerrarResumen);
+resumenOverlay.addEventListener('click', (e)=>{ if(e.target === resumenOverlay) cerrarResumen(); });
 
 /* ---- Instalar como app ---- */
 let installPrompt = null;
