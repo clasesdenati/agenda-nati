@@ -600,7 +600,7 @@
   .pago-opts button.on[data-p="transf"]{ background:#d6e8fb; border-color:#2F7FD1; color:#1b5a9e; font-weight:600; }
   .pago-opts button.on[data-p="debe"]{ background:#fbe3e3; border-color:#C94C4C; color:#8a2f2f; font-weight:600; }
   .pago-opts button.on[data-p="gratis"]{ background:#e1e6f0; border-color:#203864; color:#203864; font-weight:600; }
-  .res-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:12px; }
+  .res-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:12px; padding:8px 10px; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 2px 8px rgba(32,56,100,.12); }
   .res-nav button{ width:34px; height:34px; border-radius:50%; border:1px solid var(--line-strong); background:#fff; font-size:1.1rem; cursor:pointer; color:var(--ink); }
   .res-nav span{ font-weight:700; color:var(--brand); min-width:130px; text-align:center; }
   .res-tiles{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
@@ -841,7 +841,7 @@ window.addEventListener('error', function(e){
     <div class="detail-time" id="d-day"></div>
     <div class="detail-loc" id="d-loc"></div>
     <div class="detail-notes" id="d-notes"></div>
-    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 14px;border:none;background:var(--brand);color:#fff;border-radius:16px;font-size:0.78rem;font-weight:600;">Ficha</button>
+    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:10px 0 0;width:100%;padding:9px 2px;border:none;background:var(--brand);color:#fff;border-radius:20px;font-size:0.76rem;font-weight:600;">Ficha</button>
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
       <div class="pago-opts" id="d-pago">
@@ -951,7 +951,7 @@ window.addEventListener('error', function(e){
 <!-- ============ MODAL: clases del alumno (resumen, historial, unir fichas) ============ -->
 <div class="overlay" id="fichaClasesOverlay">
   <div class="modal">
-    <h2>Clases</h2>
+    <h2 id="fa-clases-titulo">Clases</h2>
     <div id="fa-resumen" style="font-size:0.84rem;line-height:1.5;"></div>
     <button class="btn-ghost hidden" id="fa-resumen-wa" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin:8px 0 0;">Enviar resumen de clases (imagen)</button>
     <div id="fa-resumen-msg" style="font-size:0.74rem;color:var(--ink-soft);margin-top:6px;"></div>
@@ -1005,7 +1005,7 @@ window.addEventListener('error', function(e){
   <div class="modal">
     <div class="res-nav"><button id="calPrev" aria-label="Mes anterior">‹</button><span id="calMes"></span><button id="calNext" aria-label="Mes siguiente">›</button></div>
     <div class="mini-cal" id="calGrid"></div>
-    <div class="modal-actions">
+    <div class="modal-actions" style="margin-top:14px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 2px 8px rgba(32,56,100,.12);">
       <button class="btn-ghost" id="calHoyBtn">Hoy</button>
       <button class="btn-primary" id="closeCalBtn">Cerrar</button>
     </div>
@@ -1116,7 +1116,6 @@ window.addEventListener('error', function(e){
     <div id="availabilityList" style="font-size:0.85rem;"></div>
     <div style="display:flex;gap:8px;margin-top:10px;">
       <button class="btn-ghost" id="availShareBtn" style="flex:1;border:1px solid var(--brand);color:var(--brand);border-radius:8px;">Enviar por WhatsApp</button>
-      <button class="btn-ghost" id="availJpgBtn" style="flex:1;border:1px solid var(--line-strong);border-radius:8px;">Descargar JPG</button>
     </div>
     <div id="availShareMsg" style="font-size:0.75rem;color:var(--ink-soft);margin-top:6px;"></div>
 
@@ -2130,6 +2129,8 @@ function openDetail(id, dateISO){
   detailId = id;
   detailDate = dateISO;
 
+  const esClaseDet = evt.type === 'recurrente' || evt.type === 'aislada';
+  ['d-type','d-time','d-day','d-loc','d-notes'].forEach(i=> document.getElementById(i).style.display = esClaseDet ? 'none' : '');
   const typeEl = document.getElementById('d-type');
   typeEl.textContent = typeLabels[evt.type];
   typeEl.style.background = typeColors[evt.type];
@@ -2671,7 +2672,15 @@ document.getElementById('calNext').addEventListener('click', ()=>{ calMes = new 
   m.addEventListener('wheel', e=>{ e.preventDefault(); if(m._w) return; m._w = setTimeout(()=>m._w=null, 250);
     calMes = new Date(calMes.getFullYear(), calMes.getMonth() + (e.deltaY > 0 ? 1 : -1), 1); renderMiniCal(); }, {passive:false});
 })();
-document.getElementById('calHoyBtn').addEventListener('click', ()=>{ irAFecha(new Date()); calOverlay.classList.remove('open'); renderCalendar(); });
+document.getElementById('calHoyBtn').addEventListener('click', ()=>{
+  const h = new Date();
+  // si estás mirando otro mes, te trae al mes de hoy; si ya estás en él, lleva la agenda a hoy. En los dos casos queda abierto
+  if(calMes && (calMes.getFullYear() !== h.getFullYear() || calMes.getMonth() !== h.getMonth())){
+    calMes = new Date(h.getFullYear(), h.getMonth(), 1); renderMiniCal(); return;
+  }
+  irAFecha(h); renderCalendar(); renderMiniCal();      // queda abierto: para salir está Cerrar
+});
+
 document.getElementById('closeCalBtn').addEventListener('click', ()=> calOverlay.classList.remove('open'));
 calOverlay.addEventListener('click', (e)=>{ if(e.target === calOverlay) calOverlay.classList.remove('open'); });
 
@@ -3019,6 +3028,15 @@ function getVisibleDates(){
 const availabilityOverlay = document.getElementById('availabilityOverlay');
 const newHorarioSelect = buildTimeSelect('newHorarioSelect', 15);
 
+(function(){
+  const lst = document.getElementById('availabilityList'); let x0=null, y0=null;
+  lst.addEventListener('touchstart', e=>{ x0=e.touches[0].clientX; y0=e.touches[0].clientY; }, {passive:true});
+  lst.addEventListener('touchend', e=>{
+    if(x0===null) return;
+    const dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0; x0=null;
+    if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){ availWeekStart = addDays(availWeekStart, dx<0?7:-7); renderAvailability(); }
+  }, {passive:true});
+})();
 document.getElementById('availPrevBtn').addEventListener('click', ()=>{ availWeekStart = addDays(availWeekStart, -7); renderAvailability(); });
 document.getElementById('availNextBtn').addEventListener('click', ()=>{ availWeekStart = addDays(availWeekStart, 7); renderAvailability(); });
 document.getElementById('availabilityBtn').addEventListener('click', ()=>{
@@ -3147,10 +3165,6 @@ function saveBlobAsFile(blob, name){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=> URL.revokeObjectURL(url), 2000);
 }
-document.getElementById('availJpgBtn').addEventListener('click', ()=>{
-  document.getElementById('availShareMsg').textContent = '';
-  makeAvailabilityImage((blob, name)=> saveBlobAsFile(blob, name));
-});
 // Enviar: abre el menú de compartir del celular (ahí se elige WhatsApp y el contacto o grupo)
 document.getElementById('availShareBtn').addEventListener('click', ()=>{
   const msg = document.getElementById('availShareMsg');
@@ -3872,7 +3886,7 @@ function renderFichaExtras(){
 }
 
 const fichaClasesOverlay = document.getElementById('fichaClasesOverlay');
-document.getElementById('fa-clases').addEventListener('click', ()=>{ renderFichaExtras(); fichaClasesOverlay.classList.add('open'); fichaClasesOverlay.querySelector('.modal').scrollTop = 0; });
+document.getElementById('fa-clases').addEventListener('click', ()=>{ renderFichaExtras(); { const _a = alumnoById(fichaId); document.getElementById('fa-clases-titulo').textContent = _a ? 'Clases de ' + _a.nombre : 'Clases'; } fichaClasesOverlay.classList.add('open'); fichaClasesOverlay.querySelector('.modal').scrollTop = 0; });
 document.getElementById('fa-clases-close').addEventListener('click', ()=> fichaClasesOverlay.classList.remove('open'));
 fichaClasesOverlay.addEventListener('click', (e)=>{ if(e.target === fichaClasesOverlay) fichaClasesOverlay.classList.remove('open'); });
 // si la ficha se cierra (guardar, eliminar, tocar afuera), la ventanita de clases también
