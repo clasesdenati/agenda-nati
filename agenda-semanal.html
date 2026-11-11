@@ -2765,7 +2765,7 @@ function statsRango(ini, fin){
   return { t, lista: Object.values(per).sort((a,b)=> b.dadas - a.dadas || a.nombre.localeCompare(b.nombre,'es')) };
 }
 /* ---- Caja: saldo inicial + precio por hora → cobros en efectivo y saldo final ---- */
-let caja = (function(){ try{ const c = JSON.parse(localStorage.getItem('agenda_caja') || '{}'); return { saldo: +c.saldo || 0, precio: +c.precio || 0 }; }catch(e){ return { saldo:0, precio:0 }; } })();
+let caja = (function(){ try{ const c = JSON.parse(localStorage.getItem('agenda_caja') || '{}'); return { saldo: +c.saldo || 0, precio: +c.precio || 0, anterior: +c.anterior || 0 }; }catch(e){ return { saldo:0, precio:0, anterior:0 }; } })();
 function saveCaja(){ try{ localStorage.setItem('agenda_caja', JSON.stringify(caja)); }catch(e){} }
 const pesos = n => '$ ' + Math.round(n).toLocaleString('es-UY');
 let cajaEl = null, cajaEfectivo = 0;
@@ -2773,11 +2773,13 @@ function buildCajaEl(){
   const el = document.createElement('div');
   el.style.cssText = 'margin:2px 0 14px;padding:10px;border:1px solid var(--line-strong);border-radius:12px;background:#fdfcfa;';
   el.innerHTML = `
-    <div class="row2" style="margin-bottom:8px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
       <label style="font-size:0.72rem;color:var(--ink-soft);">Saldo inicial
         <input type="text" inputmode="decimal" id="caja-saldo" placeholder="0" style="width:100%;margin-top:3px;"></label>
       <label style="font-size:0.72rem;color:var(--ink-soft);">Precio por hora
         <input type="text" inputmode="decimal" id="caja-precio" placeholder="0" style="width:100%;margin-top:3px;"></label>
+      <label style="font-size:0.72rem;color:var(--ink-soft);">Cobrado anterior
+        <input type="text" inputmode="decimal" id="caja-anterior" placeholder="0" style="width:100%;margin-top:3px;"></label>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:0.86rem;padding:3px 0;"><span>Cobros</span><span id="caja-cobros" style="font-family:var(--font-num);"></span></div>
     <div id="caja-detalle" style="font-size:0.72rem;color:var(--ink-soft);text-align:right;"></div>
@@ -2785,6 +2787,8 @@ function buildCajaEl(){
   const num = v => parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
   el.querySelector('#caja-saldo').value = caja.saldo || '';
   el.querySelector('#caja-precio').value = caja.precio || '';
+  el.querySelector('#caja-anterior').value = caja.anterior || '';
+  el.querySelector('#caja-anterior').addEventListener('input', e=>{ caja.anterior = num(e.target.value); saveCaja(); actualizarCaja(); });
   el.querySelector('#caja-saldo').addEventListener('input', e=>{ caja.saldo = num(e.target.value); saveCaja(); actualizarCaja(); });
   el.querySelector('#caja-precio').addEventListener('input', e=>{ caja.precio = num(e.target.value); saveCaja(); actualizarCaja(); });
   return el;
@@ -2794,7 +2798,7 @@ function actualizarCaja(){
   const cobros = cajaEfectivo * caja.precio;
   cajaEl.querySelector('#caja-cobros').textContent = pesos(cobros);
   cajaEl.querySelector('#caja-detalle').textContent = `${cajaEfectivo} clase${cajaEfectivo===1?'':'s'} en efectivo × ${pesos(caja.precio)}`;
-  cajaEl.querySelector('#caja-final').textContent = pesos(caja.saldo + cobros);
+  cajaEl.querySelector('#caja-final').textContent = pesos(caja.saldo + caja.anterior + cobros);
 }
 
 function renderResumen(){
@@ -3487,7 +3491,7 @@ function importFromText(text){
   if(data.agenda_referencia) localStorage.setItem('agenda_referencia', asText(data.agenda_referencia));
   if(data.agenda_espera)     localStorage.setItem('agenda_espera', asText(data.agenda_espera));
   if(data.agenda_bloqueos)   localStorage.setItem('agenda_bloqueos', asText(data.agenda_bloqueos));
-  if(data.agenda_caja)       { localStorage.setItem('agenda_caja', asText(data.agenda_caja)); try{ const c = JSON.parse(localStorage.getItem('agenda_caja')); caja = { saldo:+c.saldo||0, precio:+c.precio||0 }; cajaEl = null; }catch(e){} }
+  if(data.agenda_caja)       { localStorage.setItem('agenda_caja', asText(data.agenda_caja)); try{ const c = JSON.parse(localStorage.getItem('agenda_caja')); caja = { saldo:+c.saldo||0, precio:+c.precio||0, anterior:+c.anterior||0 }; cajaEl = null; }catch(e){} }
   if(data.agenda_alumnos)    localStorage.setItem('agenda_alumnos', asText(data.agenda_alumnos));
   else localStorage.removeItem('agenda_alumnos');   // respaldo viejo: las fichas se rearman por nombre
   if(data.agenda_distintos)  localStorage.setItem('agenda_distintos', asText(data.agenda_distintos));
