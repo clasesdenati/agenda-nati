@@ -296,7 +296,7 @@
   .slot-card.libre .slot-hora{ color:var(--ink-soft); padding-bottom:0; }
   .slot-card .event-block{ position:relative; left:auto; right:auto; top:auto; height:auto; margin-bottom:2px; padding:3px 5px; min-height:20px; justify-content:center; }
   .slot-card .event-block:last-child{ margin-bottom:1px; }
-  .slot-card .event-block .ev-title{ white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
+  .slot-card .event-block .ev-title{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; }
   .hour-line{
     flex:1;
     min-height:0;
@@ -1433,7 +1433,8 @@ function slotsDelDia(date){
     mapa.get(m).push(e);
   });
   const ahora = new Date(), hoyISO = toISODate(ahora), minAhora = ahora.getHours()*60 + ahora.getMinutes();
-  if(!isDayBlocked(iso) && iso >= hoyISO){
+  const finde = date.getDay() === 0 || date.getDay() === 6;      // sábado y domingo: sin horarios libres para agendar
+  if(!finde && !isDayBlocked(iso) && iso >= hoyISO){
     refMinutes().forEach(m=>{
       if(mapa.has(m) || isBlocked(iso, minutesToTime(m))) return;
       if(iso === hoyISO && m + 60 <= minAhora) return;      // horario libre de hoy que ya pasó
@@ -1515,6 +1516,7 @@ function renderCalendar(){
     cal.appendChild(col);
     // tocar el espacio vacío de la columna: agendar en cualquier horario de ese día
     col.addEventListener('click', ()=>{
+      if(date.getDay() === 0 || date.getDay() === 6) return;
       const r = refMinutes();
       openNewAt('aislada', iso, minutesToTime(r.length ? r[0] : 14*60), true);
     });
