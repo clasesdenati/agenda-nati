@@ -2737,8 +2737,14 @@ function openPruebas(iso){
   alumnos.filter(a=> a.examen === iso).sort((x,y)=> x.nombre.localeCompare(y.nombre,'es')).forEach(a=>{
     const r = document.createElement('div');
     r.className = 'res-row';
-    r.style.gridTemplateColumns = '1fr';
-    r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);">${escapeHtml(a.nombre)}${a.examenTema ? ` <span style="color:var(--ink-soft);font-size:0.78rem;">· ${escapeHtml(a.examenTema)}</span>` : ''}</div>`;
+    r.style.gridTemplateColumns = '1fr auto';
+    r.style.alignItems = 'center';
+    r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);">${escapeHtml(a.nombre)}${a.examenTema ? ` <span style="color:var(--ink-soft);font-size:0.78rem;">· ${escapeHtml(a.examenTema)}</span>` : ''}</div><button type="button" class="btn-ghost" style="padding:4px 10px;font-size:0.78rem;">Ficha</button>`;
+    r.querySelector('button').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      pruebasOverlay.classList.remove('open');
+      openAlumno(a.id);
+    });
     r.addEventListener('click', ()=>{
       pruebasOverlay.classList.remove('open');
       // abre directo el WhatsApp del alumno con el saludo; si no tiene teléfono, abre su ficha
