@@ -731,7 +731,7 @@ window.addEventListener('error', function(e){
         <button id="menuBuscarBtn">Buscar</button>
         <button id="menuDebenBtn">Deben</button>
         <button id="waitlistBtn">Espera</button>
-        <button id="menuRecordatoriosBtn">Recordatorios</button>
+        <button id="menuRecordatoriosBtn">Confirmaciones</button>
         <button id="menuResumenBtn">Resumen</button>
         <button id="menuVistaBtn">Ver semana</button>
         <button id="menuInstalarBtn">Instalar app</button>
@@ -841,7 +841,7 @@ window.addEventListener('error', function(e){
     <div class="detail-time" id="d-day"></div>
     <div class="detail-loc" id="d-loc"></div>
     <div class="detail-notes" id="d-notes"></div>
-    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 12px;border:1px solid var(--line-strong);border-radius:16px;font-size:0.78rem;">Ficha</button>
+    <button class="btn-ghost hidden" id="verFichaBtn" style="margin:8px 0 0;padding:6px 14px;border:none;background:var(--brand);color:#fff;border-radius:16px;font-size:0.78rem;font-weight:600;">Ficha</button>
 
     <div class="field hidden" id="attendanceSection" style="margin-top:14px;">
       <div class="pago-opts" id="d-pago">
@@ -856,7 +856,7 @@ window.addEventListener('error', function(e){
     <button class="share-btn hidden" id="shareBtn">Confirmar asistencia</button>
     <button class="btn-ghost hidden" id="confirmoBtn" style="width:100%;margin-top:8px;border:1.5px solid #2A9D8F;border-radius:8px;color:#1d6f65;font-weight:600;">✓ Me confirmó (quitar borde verde)</button>
     <button class="share-btn hidden" id="reservaBtn" style="margin-top:8px;background:var(--brand);">Enviar aviso de reserva</button>
-    <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Enviar deberes</button>
+    <button class="share-btn hidden" id="deberesBtn" style="margin-top:8px;background:var(--brand);">Abrir WhatsApp</button>
     <div class="share-hint hidden" id="shareHint">Se abre WhatsApp para elegir el contacto.</div>
 
     <div class="cancel-box hidden" id="cancelBox">
@@ -965,7 +965,7 @@ window.addEventListener('error', function(e){
     <div class="modal-actions">
       <button class="btn-ghost hidden" id="fa-delete">Eliminar ficha</button>
       <button class="btn-primary" id="fa-save">Guardar</button>
-      <button class="btn-ghost" id="fa-close">Cerrar</button>
+      <button class="btn-ghost hidden" id="fa-close">Cerrar</button>
     </div>
   </div>
 </div>
@@ -973,7 +973,7 @@ window.addEventListener('error', function(e){
 <!-- ============ MODAL: recordatorios ============ -->
 <div class="overlay" id="recOverlay">
   <div class="modal">
-    <h2>Recordatorios</h2>
+    <h2>Confirmaciones</h2>
     <div class="res-nav"><button id="recPrev" aria-label="Día anterior">‹</button><span id="recFecha"></span><button id="recNext" aria-label="Día siguiente">›</button></div>
     <div id="recResumen" style="text-align:center;font-size:0.8rem;color:var(--ink-soft);margin-bottom:6px;"></div>
     <div id="recLista"></div>
@@ -982,12 +982,12 @@ window.addEventListener('error', function(e){
   </div>
 </div>
 
-<!-- ============ MODAL: día (sin clase / recordatorios) ============ -->
+<!-- ============ MODAL: día (sin clase / confirmaciones) ============ -->
 <div class="overlay" id="diaOverlay">
   <div class="modal">
     <h2 id="diaTitulo">Día</h2>
     <button class="btn-ghost" id="diaBloqueoBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;margin-bottom:8px;"></button>
-    <button class="btn-ghost" id="diaRecBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">Enviar recordatorios de este día</button>
+    <button class="btn-ghost" id="diaRecBtn" style="width:100%;border:1px solid var(--line-strong);border-radius:8px;">Enviar confirmaciones de este día</button>
     <div class="modal-actions"><button class="btn-primary" id="closeDiaBtn">Cerrar</button></div>
   </div>
 </div>
@@ -2140,7 +2140,7 @@ function openDetail(id, dateISO){
   shareHint.textContent = (alDet && alDet.telefono)
     ? `Se abre el chat con ${alDet.nombre}.`
     : 'Se abre WhatsApp para elegir el contacto.';
-  shareBtn.classList.toggle('hidden', !isClass);
+  shareBtn.classList.add('hidden');            // "Confirmar asistencia" ahora solo está en Recordatorios
   deberesBtn.classList.toggle('hidden', !isClass);
   document.getElementById('reservaBtn').classList.toggle('hidden', !isClass);
   shareHint.classList.toggle('hidden', !isClass);
@@ -3879,6 +3879,8 @@ document.getElementById('fa-save').addEventListener('click', ()=>{
       });
       openDetail(f.evtId, f.date);
     }
+  } else {
+    fichaOverlay.classList.remove('open');      // al guardar, la ficha se cierra
   }
 });
 document.getElementById('fa-examen-x').addEventListener('click', ()=>{
