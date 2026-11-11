@@ -166,18 +166,19 @@
     min-height:0;
     padding:0 12px 10px;
     overflow-x:auto;
-    overflow-y:hidden;
-    display:flex;
+    overflow-y:auto;
+    display:block;
   }
   .calendar{
-    flex:1;
     display:grid;
-    grid-template-columns: 40px repeat(3, minmax(84px, 1fr));
+    grid-template-columns: repeat(3, minmax(84px, 1fr));
     grid-template-rows: auto auto 1fr;
+    min-height:100%;
+    box-sizing:border-box;
     background:var(--panel);
     border:1.5px solid var(--brand);
     border-radius:20px;
-    overflow:hidden;
+    overflow:clip;
     min-width:0;
   }
   .task-row-label{
@@ -270,10 +271,32 @@
   .day-col{
     position:relative;
     border-left:4px solid var(--sep);
-    display:flex;
-    flex-direction:column;
-    height:100%;
+    padding:4px 0 10px;
+    min-width:0;
   }
+  .day-head{ position:sticky; top:0; z-index:6; }
+  /* recuadro de un horario: la hora adentro y sus alumnos */
+  .slot-card{
+    margin:0 2px 6px;
+    padding:3px 3px 2px;
+    background:#fff;
+    border:1px solid var(--line-strong);
+    border-radius:11px;
+    cursor:pointer;
+  }
+  .slot-hora{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding:0 4px 3px;
+    font-family:var(--font-num);
+    font-size:0.7rem; font-weight:700;
+    color:var(--brand);
+  }
+  .slot-hora span{ font-weight:400; font-family:var(--font-ui); font-size:0.62rem; color:var(--ink-soft); }
+  .slot-card.libre{ background:transparent; border-style:dashed; padding-bottom:6px; }
+  .slot-card.libre .slot-hora{ color:var(--ink-soft); padding-bottom:0; }
+  .slot-card .event-block{ position:relative; left:auto; right:auto; top:auto; height:auto; margin-bottom:2px; padding:3px 5px; min-height:20px; justify-content:center; }
+  .slot-card .event-block:last-child{ margin-bottom:1px; }
+  .slot-card .event-block .ev-title{ white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
   .hour-line{
     flex:1;
     min-height:0;
@@ -552,7 +575,10 @@
   /* vista de semana (5 columnas) */
   .calendar.semana .event-block{ font-size:0.6rem; padding:2px 3px 0; border-left-width:2px; }
   .calendar.semana .event-block.stacked{ font-size:0.56rem; padding:0 3px; }
-  .calendar.semana .time-slot{ font-size:0.55rem; }
+  .calendar.semana .slot-hora{ font-size:0.62rem; }
+  .calendar.semana .slot-hora span{ display:none; }
+  .calendar.semana .slot-card{ margin:0 1px 5px; padding:2px 2px 1px; }
+  .calendar.semana .slot-card .event-block{ padding:2px 3px; }
   .calendar.semana .task-chip{ font-size:0.58rem; padding:2px 3px; }
   .calendar.semana .day-head .dname{ font-size:0.66rem; }
 
@@ -1395,6 +1421,31 @@ function layoutDay(dayEvents){
   return result;
 }
 
+/* ---------------- Horarios de cada día ----------------
+   Cada día muestra solo los horarios de Cupos (menos los bloqueados) y los que tengan
+   alumnos agendados, aunque sean extra. Lo que no tiene cupo ni alumnos no figura. */
+function slotsDelDia(date){
+  const iso = toISODate(date);
+  const mapa = new Map();
+  eventsForDate(date).filter(e=> e.type !== 'personal').forEach(e=>{
+    const m = minutesOf(e.startTime);
+    if(!mapa.has(m)) mapa.set(m, []);
+    mapa.get(m).push(e);
+  });
+  const ahora = new Date(), hoyISO = toISODate(ahora), minAhora = ahora.getHours()*60 + ahora.getMinutes();
+  if(!isDayBlocked(iso) && iso >= hoyISO){
+    refMinutes().forEach(m=>{
+      if(mapa.has(m) || isBlocked(iso, minutesToTime(m))) return;
+      if(iso === hoyISO && m + 60 <= minAhora) return;      // horario libre de hoy que ya pasó
+      mapa.set(m, []);
+    });
+  }
+  let lista = Array.from(mapa.entries()).sort((a,b)=> a[0]-b[0]);
+  if(franja === 'manana') lista = lista.filter(([m])=> m < 14*60);
+  else if(franja === 'tarde') lista = lista.filter(([m])=> m >= 14*60);
+  return lista;
+}
+
 /* ---------------- Render de la grilla ---------------- */
 function renderCalendar(){
   document.getElementById('weekLabel').textContent = fmtRangeLabel(currentStart);
@@ -1402,13 +1453,9 @@ function renderCalendar(){
   const cal = document.getElementById('calendar');
   cal.innerHTML = '';
   cal.classList.toggle('semana', vistaSemana);
-  cal.style.gridTemplateColumns = vistaSemana ? '34px repeat(5, minmax(0, 1fr))' : '';
+  cal.style.gridTemplateColumns = vistaSemana ? 'repeat(5, minmax(0, 1fr))' : '';
   document.getElementById('menuVistaBtn').textContent = vistaSemana ? 'Ver 3 días' : 'Ver semana';
   document.querySelectorAll('#franjaRow button').forEach(b=> b.classList.toggle('active', b.dataset.f === franja));
-
-  const corner = document.createElement('div');
-  corner.className = 'corner';
-  cal.appendChild(corner);
 
   const today = new Date();
   const visibleDates = [];
@@ -1423,9 +1470,6 @@ function renderCalendar(){
   }
 
   // fila extra arriba de la grilla de horas, para las tareas sin horario fijo
-  const taskLabel = document.createElement('div');
-  taskLabel.className = 'task-row-label';
-  cal.appendChild(taskLabel);
 
   visibleDates.forEach(date=>{
     const taskRow = document.createElement('div');
@@ -1457,24 +1501,6 @@ function renderCalendar(){
       chip.addEventListener('click', ()=> openPruebas(isoD));
       taskRow.appendChild(chip);
     }
-    const fuera = eventsForDate(date).filter(e=> e.type !== 'personal' && fueraDeAgenda(e));
-    if(fuera.length){
-      if(franja === 'manana'){            // vista de 10hs: una por una (hora y nombre); en 14hs y Día, solo la cantidad
-        fuera.slice().sort((a,b)=> a.startTime.localeCompare(b.startTime)).forEach(x=>{
-          const chipX = document.createElement('div');
-          chipX.className = 'task-chip extra';
-          chipX.textContent = `⏰ ${x.startTime} ${String(x.title).replace(/\s*\n\s*/g, ' · ')}`;
-          chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
-          taskRow.appendChild(chipX);
-        });
-      } else {
-        const chipX = document.createElement('div');
-        chipX.className = 'task-chip extra';
-        chipX.textContent = `⏰ Extra (${fuera.length})`;
-        chipX.addEventListener('click', ()=> openExtra(toISODate(date)));
-        taskRow.appendChild(chipX);
-      }
-    }
     taskRow.addEventListener('click', (e)=>{
       if(e.target.closest('.task-chip')) return;
       openNewAt('personal', toISODate(date));
@@ -1482,56 +1508,35 @@ function renderCalendar(){
     cal.appendChild(taskRow);
   });
 
-  const timeCol = document.createElement('div');
-  timeCol.className = 'time-col';
-  for(let h=Math.floor(DAY_START_HOUR); h<DAY_END_HOUR; h++){
-    const desde = Math.max(h, DAY_START_HOUR), len = Math.min(h+1, DAY_END_HOUR) - desde;
-    const slot = document.createElement('div');
-    slot.className = 'time-slot';
-    if(len < 1) slot.style.flex = String(len);                 // fila parcial (primera o última)
-    slot.dataset.desde = String(Math.round(desde*60));
-    slot.textContent = pad2(Math.floor(desde)) + ':' + pad2(Math.round((desde % 1)*60));
-    timeCol.appendChild(slot);
-  }
-  decorateTimeCol(timeCol);
-  cal.appendChild(timeCol);
-
-  const totalMinutes = (DAY_END_HOUR - DAY_START_HOUR) * 60;
-
   visibleDates.forEach(date=>{
+    const iso = toISODate(date);
     const col = document.createElement('div');
     col.className = 'day-col';
-    for(let h=Math.floor(DAY_START_HOUR); h<DAY_END_HOUR; h++){
-      const line = document.createElement('div');
-      line.className = 'hour-line';
-      const lenL = Math.min(h+1, DAY_END_HOUR) - Math.max(h, DAY_START_HOUR);
-      if(lenL < 1) line.style.flex = String(lenL);
-      col.appendChild(line);
-    }
     cal.appendChild(col);
-
-    // medir la altura real disponible (varía según el tamaño de pantalla)
-    const pxPerMin = col.clientHeight / totalMinutes;
-
-    const laidOut = layoutDay(eventsForDate(date).filter(e=>e.type!=='personal'));
-    col.addEventListener('click', (e)=>{
-      if(e.target.closest('.event-block')) return;
-      const rect = col.getBoundingClientRect();
-      const tapped = DAY_START_HOUR*60 + ((e.clientY - rect.top) / rect.height) * totalMinutes;
-      // la hora del renglón tocado (si ahí cae un horario de Cupos, ese; si no, la hora en punto)
-      const h0 = Math.floor(tapped/60)*60;
-      const ref = refMinutes().find(r => r >= h0 && r < h0+60);
-      const hora = ref != null ? minutesToTime(ref) : minutesToTime(Math.max(h0, DAY_START_HOUR*60));
-      openNewAt('aislada', toISODate(date), hora, ref == null);
+    // tocar el espacio vacío de la columna: agendar en cualquier horario de ese día
+    col.addEventListener('click', ()=>{
+      const r = refMinutes();
+      openNewAt('aislada', iso, minutesToTime(r.length ? r[0] : 14*60), true);
     });
-    drawClassBreaks(col);
-    drawBlockedSlots(col, toISODate(date));
-    laidOut.forEach(item=>{ const blk = renderEventBlock(item, pxPerMin, toISODate(date)); if(blk) col.appendChild(blk); });
-
+    slotsDelDia(date).forEach(([m, evs])=>{
+      const card = document.createElement('div');
+      card.className = 'slot-card' + (evs.length ? '' : ' libre');
+      const hd = document.createElement('div');
+      hd.className = 'slot-hora';
+      hd.textContent = minutesToTime(m);
+      if(!evs.length){ const l = document.createElement('span'); l.textContent = 'libre'; hd.appendChild(l); }
+      card.appendChild(hd);
+      evs.forEach(e=>{ const blk = renderEventBlock({evt:e, col:0, colCount:1}, 0, iso, true); if(blk) card.appendChild(blk); });
+      card.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        if(ev.target.closest('.event-block')) return;
+        openNewAt('aislada', iso, minutesToTime(m), !refMinutes().includes(m));   // otro alumno en ese mismo horario
+      });
+      col.appendChild(card);
+    });
     if(sameDate(date, today)){
       col.dataset.today = '1';
       col.classList.add('hoy');
-      col.dataset.ppm = pxPerMin;
     }
   });
 
@@ -1615,38 +1620,13 @@ function decorateTimeCol(timeCol){
 }
 
 /* Línea de la hora actual (solo en la columna de hoy) */
-function updateNowLine(){
-  document.querySelectorAll('.now-line').forEach(n=>n.remove());
-  const col = document.querySelector('.day-col[data-today="1"]');
-  if(!col) return;
-  const now = new Date();
-  const min = now.getHours()*60 + now.getMinutes() - DAY_START_HOUR*60;
-  const total = (DAY_END_HOUR - DAY_START_HOUR)*60;
-  if(min < 0 || min > total) return;
-  const line = document.createElement('div');
-  line.className = 'now-line';
-  line.style.top = (min * parseFloat(col.dataset.ppm)) + 'px';
-  col.appendChild(line);
-}
+function updateNowLine(){ document.querySelectorAll('.now-line').forEach(n=>n.remove()); }   // la agenda por recuadros ya no tiene línea de hora
 setInterval(updateNowLine, 60000);
 
-function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO){
+function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO, enCard){
   const el = document.createElement('div');
-  el.className = 'event-block type-'+evt.type + (colCount>1 ? ' stacked' : '');
-  const totalMin = (DAY_END_HOUR - DAY_START_HOUR)*60;
-  const startMin = Math.max(minutesOf(evt.startTime) - DAY_START_HOUR*60, 0);
-  const endMin = Math.min(minutesOf(evt.endTime) - DAY_START_HOUR*60, totalMin);
-  if(endMin <= startMin) return null;                  // fuera de la franja que se está viendo
+  el.className = 'event-block type-'+evt.type;
   { const rg = getRegistro(evt.id, dateISO); if(rg.cancelada) el.classList.add('cancelada'); else if(rg.paid === false) el.classList.add('debe'); if(rg.avisado && !rg.cancelada) el.classList.add('avisado'); }
-  const ownTop = startMin*pxPerMin;
-  const ownHeight = Math.max((endMin-startMin)*pxPerMin, 14);
-
-  // Varios al mismo horario: siempre en lista vertical, uno debajo del otro
-  // (nunca lado a lado), cada uno en su propio renglón con el nombre completo.
-  const GAP = 2;                       // margen arriba y abajo del grupo, para que la franja gris no tape el nombre
-  const sliceHeight = (ownHeight - 2*GAP) / colCount;
-  el.style.top = (ownTop + GAP + col*sliceHeight) + 'px';
-  el.style.height = Math.max(sliceHeight - 1, 12) + 'px';
 
   el.dataset.eid = evt.id;
   el.dataset.date = dateISO;
