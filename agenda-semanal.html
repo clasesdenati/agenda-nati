@@ -2431,13 +2431,9 @@ function buildReservaMessage(evt, dateISO){
   return `Se realizó la reserva de tu clase en las @clasesDeNati\n\nDía: ${dia}\nHora: ${evt.startTime}\n\nGuardala en tu agenda: ${buildGoogleCalendarLink(evt, dateISO)}`;
 }
 
-function buildDeberesMessage(){
-  return 'A continuación, te envío los deberes para realizar en casa con lo trabajado en clase.\n\nEs importante que los hagas lo antes posible y me mandes fotos cuando los termines.';
-}
-
+// Abrir WhatsApp desde la clase: abre el chat sin texto
 document.getElementById('deberesBtn').addEventListener('click', ()=>{
-  const url = waUrl(events.find(e=>e.id===detailId), buildDeberesMessage());
-  window.open(url, '_blank');
+  window.open(waUrl(events.find(e=>e.id===detailId), ''), '_blank');
 });
 
 
@@ -2743,7 +2739,12 @@ function openPruebas(iso){
     r.className = 'res-row';
     r.style.gridTemplateColumns = '1fr';
     r.innerHTML = `<div style="text-align:left;font-family:var(--font-ui);">${escapeHtml(a.nombre)}${a.examenTema ? ` <span style="color:var(--ink-soft);font-size:0.78rem;">· ${escapeHtml(a.examenTema)}</span>` : ''}</div>`;
-    r.addEventListener('click', ()=>{ pruebasOverlay.classList.remove('open'); openAlumno(a.id); });
+    r.addEventListener('click', ()=>{
+      pruebasOverlay.classList.remove('open');
+      // abre directo el WhatsApp del alumno con el saludo; si no tiene teléfono, abre su ficha
+      if(waPhone(a.telefono)) window.open('https://wa.me/' + waPhone(a.telefono) + '?text=' + encodeURIComponent('Hola! Cómo te fue hoy?'), '_blank');
+      else openAlumno(a.id);
+    });
     lista.appendChild(r);
   });
   pruebasOverlay.classList.add('open');
