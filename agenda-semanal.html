@@ -114,6 +114,7 @@
   .mini-cal .dow{ text-align:center; font-size:0.85rem; font-weight:700; color:var(--ink); padding:6px 0 4px; }
   .mini-cal button{ position:relative; border:none; border-radius:50%; background:none; font-family:var(--font-num); font-size:0.9rem; color:var(--ink); cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .mini-cal button:active{ background:#eceef2; }
+  .mini-cal button.feriado{ color:#C94C4C; font-weight:700; }
   .mini-cal button.hoy{ background:#d9f0ec; color:#1d6f65; font-weight:700; }
   .mini-cal button.con-clases::after{ content:''; position:absolute; left:50%; bottom:4px; width:5px; height:5px; margin-left:-2.5px; border-radius:50%; background:#203864; opacity:.55; }
   .mini-cal button.hoy.con-clases::after{ background:#1d6f65; opacity:.7; }
@@ -1501,6 +1502,12 @@ function renderCalendar(){
       }
     }
     const isoD = toISODate(date);
+    if(feriadoDe(isoD)){
+      const fch = document.createElement('div');
+      fch.className = 'task-chip prueba';
+      fch.textContent = '🇺🇾 ' + feriadoDe(isoD);
+      taskRow.appendChild(fch);
+    }
     const conPrueba = alumnos.filter(a=> a.examen === isoD);
     if(conPrueba.length){
       const chip = document.createElement('div');
@@ -2628,6 +2635,28 @@ document.querySelectorAll('#franjaRow button').forEach(b=> b.addEventListener('c
 
 /* ---- Calendario del mes (se abre tocando las fechas de arriba) ---- */
 const calOverlay = document.getElementById('calOverlay');
+/* ---- Feriados de Uruguay (fechas oficiales; si el Poder Ejecutivo traslada alguno, se corrige acá) ---- */
+const _feriadosCache = {};
+function feriadosDelAnio(y){
+  if(_feriadosCache[y]) return _feriadosCache[y];
+  const f = {};
+  const add = (m,d,n)=>{ f[`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`] = n; };
+  add(1,1,'Año Nuevo'); add(4,19,'Desembarco de los 33 Orientales'); add(5,1,'Día de los Trabajadores');
+  add(5,18,'Batalla de Las Piedras'); add(6,19,'Natalicio de Artigas'); add(7,18,'Jura de la Constitución');
+  add(8,25,'Declaratoria de la Independencia'); add(10,12,'Día de la Diversidad Cultural');
+  add(11,2,'Día de los Difuntos'); add(12,25,'Día de la Familia');
+  // Pascua (algoritmo de Gauss) → Carnaval y Turismo
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,g=Math.floor((b+8)/25),h=Math.floor((b-g+1)/3);
+  const i=(19*a+b-d-h+15)%30,k=Math.floor(c/4),l=c%4,m=(32+2*e+2*k-i-l)%7,n=Math.floor((a+11*i+22*m)/451);
+  const mm = Math.floor((i+m-7*n+114)/31), dd = ((i+m-7*n+114)%31)+1;
+  const pascua = new Date(y, mm-1, dd);
+  [[-48,'Carnaval'],[-47,'Carnaval'],[-3,'Jueves de Turismo'],[-2,'Viernes Santo']].forEach(([off,nom])=>{
+    const x = addDays(pascua, off); f[toISODate(x)] = nom;
+  });
+  return (_feriadosCache[y] = f);
+}
+function feriadoDe(iso){ return feriadosDelAnio(+String(iso).slice(0,4))[iso] || ''; }
+
 let calMes = null;
 function renderMiniCal(){
   const y = calMes.getFullYear(), m = calMes.getMonth();
@@ -2647,6 +2676,7 @@ function renderMiniCal(){
     b.type = 'button';
     b.textContent = d.getDate();
     if(iso === hoyISO) b.classList.add('hoy');
+    if(feriadoDe(iso)){ b.classList.add('feriado'); b.title = feriadoDe(iso); }
     if(eventsForDate(d).some(e=> e.type !== 'personal')) b.classList.add('con-clases');
     b.addEventListener('click', ()=>{ irAFecha(d); calOverlay.classList.remove('open'); renderCalendar(); });
     grid.appendChild(b);
