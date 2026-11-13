@@ -328,6 +328,10 @@
     position:absolute; left:0; right:0; flex:none; height:auto;
   }
 
+  .ahora-line{ position:relative; height:1px; margin:4px 4px 10px; background:#d93025; border-radius:2px; pointer-events:none; }
+  .ahora-line::before{ content:''; position:absolute; left:-2px; top:-2px; width:5px; height:5px; border-radius:50%; background:#d93025; }
+  .ahora-line.dentro{ position:absolute; left:0; right:0; margin:0; z-index:4; }
+  .ahora-line span{ position:absolute; right:0; top:3px; font-family:var(--font-num); font-size:0.6rem; color:#d93025; font-weight:700; background:var(--bg); padding:0 3px; border-radius:4px; }
   .now-line{
     position:absolute;
     left:0; right:0;
@@ -1539,6 +1543,8 @@ function renderCalendar(){
     slotsDelDia(date).forEach(([m, evs])=>{
       const card = document.createElement('div');
       card.className = 'slot-card' + (evs.length ? '' : ' libre');
+      card.dataset.m = m;
+      if(evs.length) card.dataset.fin = Math.max(...evs.map(e=> minutesOf(e.endTime || e.startTime)));
       const hd = document.createElement('div');
       hd.className = 'slot-hora';
       hd.textContent = minutesToTime(m);
@@ -1638,7 +1644,29 @@ function decorateTimeCol(timeCol){
 }
 
 /* Línea de la hora actual (solo en la columna de hoy) */
-function updateNowLine(){ document.querySelectorAll('.now-line').forEach(n=>n.remove()); }   // la agenda por recuadros ya no tiene línea de hora
+// línea roja de la hora actual: va entre los recuadros que ya pasaron y los que siguen (solo en la columna de hoy)
+function updateNowLine(){
+  document.querySelectorAll('.ahora-line').forEach(n=>n.remove());
+  const col = document.querySelector('.day-col[data-today="1"]');
+  if(!col) return;
+  const h = new Date(), ahora = h.getHours()*60 + h.getMinutes();
+  const cards = [...col.querySelectorAll('.slot-card')];
+  if(!cards.length) return;
+  const ln = document.createElement('div');
+  ln.className = 'ahora-line';
+  // si estás en medio de una clase, la línea va DENTRO de ese recuadro, según cuánto avanzó; si no, entre recuadros
+  const enClase = cards.find(c=> c.dataset.fin && +c.dataset.m <= ahora && ahora < +c.dataset.fin);
+  if(enClase){
+    const frac = (ahora - +enClase.dataset.m) / (+enClase.dataset.fin - +enClase.dataset.m);
+    ln.classList.add('dentro');
+    ln.style.top = (frac * 100).toFixed(1) + '%';
+    enClase.style.position = 'relative';
+    enClase.appendChild(ln);
+    return;
+  }
+  const sig = cards.find(c=> +c.dataset.m > ahora);
+  if(sig) col.insertBefore(ln, sig); else col.appendChild(ln);
+}
 setInterval(updateNowLine, 60000);
 
 function renderEventBlock({evt, col, colCount}, pxPerMin, dateISO, enCard){
