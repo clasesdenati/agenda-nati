@@ -762,6 +762,7 @@ window.addEventListener('error', function(e){
       <button data-t="aislada" type="button">Consulta</button>
       <button data-t="personal" type="button">Tareas</button>
     </div>
+    <button type="button" class="btn-ghost" id="soloAlumnoBtn" style="width:100%;margin:-4px 0 12px;border:1px dashed var(--line-strong);border-radius:10px;">👤 Solo crear alumno (sin agendar)</button>
 
     <div class="field">
       <label for="f-title" id="f-title-label">Nombre del alumno</label>
@@ -1785,6 +1786,7 @@ function snapToStep(hhmm){
 let pendingReschedule = null;     // "Cambiar este día": la clase original solo se saca cuando se guarda la nueva
 function openEditModal(existing, asCopy){
   pendingReschedule = null;
+  document.getElementById('soloAlumnoBtn').classList.toggle('hidden', !!(existing && !asCopy));
   editingId = (existing && !asCopy) ? existing.id : null;
   document.getElementById('editModalTitle').textContent = asCopy ? 'Duplicar evento' : 'Nuevo evento';
   // vínculo con la ficha: al editar se puede "corregir el nombre"; en una copia no
@@ -1983,6 +1985,12 @@ startSelect.addEventListener('change', ()=>{
 });
 
 document.getElementById('newEventBtn').addEventListener('click', ()=> openEditModal(null));
+document.getElementById('soloAlumnoBtn').addEventListener('click', ()=>{
+  const nombre = (document.getElementById('f-title').value || '').trim();
+  editOverlay.classList.remove('open');
+  openAlumno(null);
+  if(nombre && currentType !== 'personal') document.getElementById('fa-nombre').value = nombre;   // si ya lo habías escrito, lo trae
+});
 document.getElementById('cancelEditBtn').addEventListener('click', ()=> editOverlay.classList.remove('open'));
 
 function timeRangesOverlap(aStart,aEnd,bStart,bEnd){
@@ -3404,7 +3412,7 @@ function wireWaitlistRowButtons(container, afterChange){
       const w = waitlist.find(x=> x.id === btn.dataset.wa); if(!w) return;
       const al = waitAlumno(w), num = al ? waPhone(al.telefono) : '';
       if(!num){ alert(al ? `${al.nombre} no tiene teléfono en su ficha. Tocá "Ficha" para agregarlo.` : `No encontré la ficha de ${w.title}. Agregalo en Alumnos con su teléfono.`); return; }
-      const txt = `Hola! Se liberó un lugar ${dayPhrase(w.date)}, a las ${w.startTime}hs. ¿Querés tomarlo?\n\nSaludos!`;
+      const txt = `Hola! Se liberó un lugar ${dayPhrase(w.date)}, a las ${w.startTime}hs. ¿Te sirve?\n\nSaludos!`;
       window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(txt), '_blank');
     });
   });
