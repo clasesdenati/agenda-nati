@@ -3762,12 +3762,14 @@ document.getElementById('alumnosSearch').addEventListener('input', renderAlumnos
 document.getElementById('closeAlumnosBtn').addEventListener('click', ()=> alumnosOverlay.classList.remove('open'));
 document.getElementById('newAlumnoBtn').addEventListener('click', ()=> openAlumno(null));
 
-let fichaVista = null, fichaMes = null;   // historial de la ficha: 'mes' | 'todo'
+let fichaVista = null, fichaMes = null;   // período del historial: 'mes' | 'todo' | 'n' (las últimas/próximas N)
+let fichaQue = 'todas', fichaN = 2, fichaDet = 'det';   // qué mostrar (todas | realizadas | proximas), cuántas, y detallado | resumido
 let fichaFocus = null;   // clase a la que se refiere el aviso de reserva (la recién agendada o la que se estaba mirando)
 function openAlumno(id, focus){
   fichaId = id;
   fichaFocus = focus || null;
   fichaVista = null; fichaMes = null;      // se eligen solas según cuánto viene el alumno
+  fichaQue = 'todas'; fichaN = 2; fichaDet = 'det';
   const a = id ? alumnoById(id) : null;
   document.getElementById('fichaTitle').textContent = a ? 'Ficha' : 'Nuevo alumno';
   document.getElementById('fa-nombre').value = a ? a.nombre : '';
@@ -3870,20 +3872,38 @@ function renderFichaExtras(){
   };
   if(!occ.length) return;
 
-  // si viene mucho se ve por mes; si viene poco, todo junto. Se puede cambiar con los botones.
+  // si viene mucho se ve por mes; si viene poco, todo junto. Después elegís vos qué mostrar.
   if(!fichaVista) fichaVista = past.length > 12 ? 'mes' : 'todo';
   if(!fichaMes){ const h = new Date(); fichaMes = new Date(h.getFullYear(), h.getMonth(), 1); }
 
-  const ctrl = document.createElement('div');
-  ctrl.className = 'hist-ctrl';
   const mkPill = (txt, activo, fn)=>{
     const b = document.createElement('button'); b.type = 'button'; b.textContent = txt;
     b.className = 'hist-pill' + (activo ? ' active' : ''); b.addEventListener('click', fn); return b;
   };
-  ctrl.appendChild(mkPill('Por mes', fichaVista === 'mes', ()=>{ fichaVista = 'mes'; renderFichaExtras(); }));
-  ctrl.appendChild(mkPill('Todo', fichaVista === 'todo', ()=>{ fichaVista = 'todo'; renderFichaExtras(); }));
+  const fila = (rotulo, pills)=>{
+    const r = document.createElement('div'); r.className = 'hist-ctrl'; r.style.marginTop = '8px';
+    const l = document.createElement('span'); l.textContent = rotulo; l.style.cssText = 'font-size:0.72rem;color:var(--ink-soft);width:50px;';
+    r.appendChild(l); pills.forEach(x=>{ x.style.padding = '3px 9px'; r.appendChild(x); }); return r;
+  };
+  const re = ()=> renderFichaExtras();
+  hist.appendChild(fila('Mostrar', [
+    mkPill('Todas', fichaQue === 'todas', ()=>{ fichaQue = 'todas'; re(); }),
+    mkPill('Realizadas', fichaQue === 'realizadas', ()=>{ fichaQue = 'realizadas'; re(); }),
+    mkPill('Próximas', fichaQue === 'proximas', ()=>{ fichaQue = 'proximas'; re(); })
+  ]));
+  hist.appendChild(fila('Período', [
+    mkPill('Todo', fichaVista === 'todo', ()=>{ fichaVista = 'todo'; re(); }),
+    mkPill('Por mes', fichaVista === 'mes', ()=>{ fichaVista = 'mes'; re(); }),
+    mkPill('1 clase', fichaVista === 'n' && fichaN === 1, ()=>{ fichaVista = 'n'; fichaN = 1; re(); }),
+    mkPill('2 clases', fichaVista === 'n' && fichaN === 2, ()=>{ fichaVista = 'n'; fichaN = 2; re(); }),
+    mkPill('3 clases', fichaVista === 'n' && fichaN === 3, ()=>{ fichaVista = 'n'; fichaN = 3; re(); })
+  ]));
+  hist.appendChild(fila('Formato', [
+    mkPill('Detallado', fichaDet === 'det', ()=>{ fichaDet = 'det'; re(); }),
+    mkPill('Resumido', fichaDet === 'res', ()=>{ fichaDet = 'res'; re(); })
+  ]));
   if(fichaVista === 'mes'){
-    const nav = document.createElement('div'); nav.className = 'hist-mes';
+    const nav = document.createElement('div'); nav.className = 'hist-mes'; nav.style.cssText = 'justify-content:center;margin:10px 0 0;';
     const prev = document.createElement('button'); prev.type = 'button'; prev.textContent = '‹'; prev.setAttribute('aria-label','Mes anterior');
     const next2 = document.createElement('button'); next2.type = 'button'; next2.textContent = '›'; next2.setAttribute('aria-label','Mes siguiente');
     prev.addEventListener('click', ()=>{ fichaMes = new Date(fichaMes.getFullYear(), fichaMes.getMonth()-1, 1); renderFichaExtras(); });
@@ -3891,37 +3911,30 @@ function renderFichaExtras(){
     const t = fichaMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
     const lab = document.createElement('span'); lab.textContent = t.charAt(0).toUpperCase() + t.slice(1);
     nav.appendChild(prev); nav.appendChild(lab); nav.appendChild(next2);
-    ctrl.appendChild(nav);
+    hist.appendChild(nav);
   }
-  hist.appendChild(ctrl);
 
-  if(fichaVista === 'mes'){
-    const key = fichaMes.getFullYear() + '-' + String(fichaMes.getMonth()+1).padStart(2,'0');
-    const delMes = occ.filter(o=> o.date.slice(0,7) === key);
-    if(delMes.length){
-      const dadasMes = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
-      addRows(`${delMes.length} clase${delMes.length===1?'':'s'}${dadasMes ? ' · ' + dadasMes + ' dada' + (dadasMes===1?'':'s') : ''}`, delMes);
-      hist.appendChild(led);
-    } else {
-      const vacio = document.createElement('div');
-      vacio.style.cssText = 'font-size:0.82rem;color:var(--ink-soft);padding:10px 2px;';
-      vacio.textContent = 'No hay clases este mes.';
-      hist.appendChild(vacio);
-    }
-  } else {
-    fichaSecciones(fichaId).forEach(sec=>{
-      if(sec.rows){ addRows(sec.titulo, sec.rows); return; }
-      const hd = document.createElement('div'); hd.className = 'ledger-sec'; hd.textContent = sec.titulo; led.appendChild(hd);
-      sec.meses.forEach(m=>{
-        const row = document.createElement('div'); row.className = 'ledger-row';
-        row.style.gridTemplateColumns = '1fr 104px';          // ancho fijo: entra bien hasta de 3 cifras
-        row.innerHTML = `<div>${escapeHtml(m.label)}</div><div style="color:var(--ink-soft);font-family:var(--font-num);text-align:right;white-space:nowrap;">${m.total} clase${m.total===1?'':'s'} ›</div>`;
-        row.addEventListener('click', ()=>{ fichaVista = 'mes'; fichaMes = m.fecha; renderFichaExtras(); });   // tocar un mes lo abre al detalle
-        led.appendChild(row);
-      });
-    });
-    hist.appendChild(led);
+  const secs = fichaSecciones(fichaId);
+  if(!secs.length){
+    const vacio = document.createElement('div');
+    vacio.style.cssText = 'font-size:0.82rem;color:var(--ink-soft);padding:12px 2px;';
+    vacio.textContent = 'No hay clases con esa selección.';
+    hist.appendChild(vacio);
+    return;
   }
+  secs.forEach(sec=>{
+    if(sec.rows){ addRows(sec.titulo, sec.rows); return; }
+    const hd = document.createElement('div'); hd.className = 'ledger-sec'; hd.textContent = sec.titulo; led.appendChild(hd);
+    sec.meses.forEach(m=>{
+      const row = document.createElement('div'); row.className = 'ledger-row';
+      row.style.gridTemplateColumns = '1fr auto';
+      row.innerHTML = `<div>${escapeHtml(m.label)}</div><div style="color:var(--ink-soft);font-family:var(--font-num);text-align:right;white-space:nowrap;">${mesTexto(m)}${m.debe ? ` · <span style="color:#C94C4C;">debe ${m.debe}</span>` : ''} ›</div>`;
+      row.addEventListener('click', ()=>{ fichaVista = 'mes'; fichaMes = m.fecha; fichaDet = 'det'; renderFichaExtras(); });   // tocar un mes lo abre al detalle
+      led.appendChild(row);
+    });
+  });
+  if(fichaDet === 'res'){ const hd = led.querySelector('.ledger-head'); if(hd) hd.remove(); }   // en resumido no hay columnas
+  hist.appendChild(led);
 }
 
 const fichaClasesOverlay = document.getElementById('fichaClasesOverlay');
@@ -3971,36 +3984,61 @@ document.getElementById('fa-examen-x').addEventListener('click', ()=>{
 });
 document.getElementById('fa-close').addEventListener('click', ()=> fichaOverlay.classList.remove('open'));
 // Resumen de clases como imagen con el formato de la ficha (del mes que se está viendo, o de todo)
+function mesTexto(m){ return `${m.total} clase${m.total===1?'':'s'}` + (m.dadas && m.dadas !== m.total ? ` · ${m.dadas} dada${m.dadas===1?'':'s'}` : ''); }
+function agruparMeses(rows, asc){
+  const todayISO = toISODate(new Date()), por = {};
+  rows.forEach(o=>{ const k = o.date.slice(0,7); (por[k] = por[k] || []).push(o); });
+  const keys = Object.keys(por).sort(); if(!asc) keys.reverse();
+  return keys.map(k=>{
+    const f = new Date(+k.slice(0,4), +k.slice(5,7)-1, 1);
+    const t = f.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
+    const arr = por[k], pasadas = arr.filter(o=> o.date < todayISO);
+    return { key:k, fecha:f, label: t.charAt(0).toUpperCase() + t.slice(1), total: arr.length, dadas: pasadas.length,
+             debe: pasadas.filter(o=> getRegistro(o.evt.id, o.date).paid === false).length };
+  });
+}
 function fichaSecciones(id){
   const occ = alumnoOccurrences(id).filter(o=> !getRegistro(o.evt.id, o.date).cancelada);   // las canceladas no se listan
   const todayISO = toISODate(new Date());
   const past = occ.filter(o=> o.date < todayISO), next = occ.filter(o=> o.date >= todayISO);
+  const res = fichaDet === 'res';
+  const pack = (titulo, rows, asc)=> res ? { titulo, meses: agruparMeses(rows, asc) } : { titulo, rows };
+  const ok = x=> (x.rows || x.meses).length;
+  const N = fichaN;
+  let secs = [];
   if(fichaVista === 'mes' && fichaMes){
     const key = fichaMes.getFullYear() + '-' + String(fichaMes.getMonth()+1).padStart(2,'0');
-    const delMes = occ.filter(o=> o.date.slice(0,7) === key);
-    const dadas = delMes.filter(o=> o.date < todayISO && !getRegistro(o.evt.id, o.date).cancelada).length;
-    return delMes.length ? [{ titulo: `${delMes.length} clase${delMes.length===1?'':'s'}${dadas ? ' · ' + dadas + ' dada' + (dadas===1?'':'s') : ''}`, rows: delMes }] : [];
-  }
-  // Todo: este mes y el siguiente al detalle; los meses anteriores, solo el total (si son muchas clases)
-  const h = new Date(), mk = d=> d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-  const keyHoy = mk(h), keySig = mk(new Date(h.getFullYear(), h.getMonth()+1, 1));
-  const proximas = proximasClases(next).filter(o=> o.date.slice(0,7) <= keySig);
-  const viejas = past.filter(o=> o.date.slice(0,7) < keyHoy), deEsteMes = past.filter(o=> o.date.slice(0,7) >= keyHoy);
-  const res = [{ titulo:'Próximas clases', rows: proximas }];
-  if(viejas.length > 12){
-    res.push({ titulo:'Este mes', rows: deEsteMes.slice().reverse() });
-    const porMes = {};
-    viejas.forEach(o=>{ const k = o.date.slice(0,7); (porMes[k] = porMes[k] || []).push(o); });
-    const meses = Object.keys(porMes).sort().reverse().map(k=>{
-      const f = new Date(+k.slice(0,4), +k.slice(5,7)-1, 1);
-      const t = f.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
-      return { key:k, fecha:f, label: t.charAt(0).toUpperCase() + t.slice(1), total: porMes[k].length };
-    });
-    res.push({ titulo:'Meses anteriores', meses });
+    const base = fichaQue === 'realizadas' ? past : fichaQue === 'proximas' ? next : occ;
+    const delMes = base.filter(o=> o.date.slice(0,7) === key);
+    const dadas = delMes.filter(o=> o.date < todayISO).length;
+    if(delMes.length) secs = [pack(`${delMes.length} clase${delMes.length===1?'':'s'}${dadas ? ' · ' + dadas + ' dada' + (dadas===1?'':'s') : ''}`, delMes, true)];
+  } else if(fichaVista === 'n'){
+    const ult = past.slice(-N).reverse(), prox = next.slice(0, N);
+    const tU = N===1 ? 'Última clase' : `Últimas ${N} clases`, tP = N===1 ? 'Próxima clase' : `Próximas ${N} clases`;
+    if(fichaQue === 'realizadas') secs = [pack(tU, ult)];
+    else if(fichaQue === 'proximas') secs = [pack(tP, prox, true)];
+    else secs = [pack(tP, prox, true), pack(tU, ult)];
+  } else if(fichaQue === 'realizadas'){
+    secs = [pack('Realizadas', past.slice().reverse())];
+  } else if(fichaQue === 'proximas'){
+    secs = [pack('Próximas clases', next, true)];
+  } else if(res){
+    secs = [pack('Próximas clases', next, true), pack('Anteriores', past.slice().reverse())];
   } else {
-    res.push({ titulo:'Anteriores', rows: past.slice().reverse() });
+    // Todo + detallado: este mes y el siguiente al detalle; los meses anteriores, solo el total (si son muchas clases)
+    const h = new Date(), mk = d=> d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const keyHoy = mk(h), keySig = mk(new Date(h.getFullYear(), h.getMonth()+1, 1));
+    const proximas = proximasClases(next).filter(o=> o.date.slice(0,7) <= keySig);
+    const viejas = past.filter(o=> o.date.slice(0,7) < keyHoy), deEsteMes = past.filter(o=> o.date.slice(0,7) >= keyHoy);
+    secs = [{ titulo:'Próximas clases', rows: proximas }];
+    if(viejas.length > 12){
+      secs.push({ titulo:'Este mes', rows: deEsteMes.slice().reverse() });
+      secs.push({ titulo:'Meses anteriores', meses: agruparMeses(viejas) });
+    } else {
+      secs.push({ titulo:'Anteriores', rows: past.slice().reverse() });
+    }
   }
-  return res.filter(x=> (x.rows || x.meses).length);
+  return secs.filter(ok);
 }
 function makeFichaImage(a, done){
   const secs = fichaSecciones(a.id);
@@ -4030,6 +4068,8 @@ function makeFichaImage(a, done){
     const t = fichaMes.toLocaleDateString('es-UY', { month:'long', year:'numeric' }).replace(' de ', ' ');
     sub = t.charAt(0).toUpperCase() + t.slice(1);
   }
+  if(fichaQue === 'realizadas') sub += ' · realizadas';
+  else if(fichaQue === 'proximas') sub += ' · próximas';
   c.fillStyle = GREY; c.font = `22px ${MONO}`; c.fillText(sub, PAD, 124);
 
   // doble línea roja y encabezado
@@ -4045,7 +4085,7 @@ function makeFichaImage(a, done){
     y += SH; hline(y, x0, x4, BLUEL, 1.5);
     (sec.meses || []).forEach(m=>{
       c.fillStyle = INK; c.font = `24px ${UI}`; c.fillText(m.label, x0 + 12, y + RH/2 + 8);
-      c.textAlign = 'right'; c.font = `22px ${MONO}`; c.fillText(`${m.total} clase${m.total===1?'':'s'}`, x4 - 12, y + RH/2 + 7); c.textAlign = 'left';
+      c.textAlign = 'right'; c.font = `22px ${MONO}`; c.fillText(mesTexto(m) + (m.debe ? ` · debe ${m.debe}` : ''), x4 - 12, y + RH/2 + 7); c.textAlign = 'left';
       y += RH; hline(y, x0, x4, BLUEL, 1.5);
     });
     (sec.rows || []).forEach(o=>{
