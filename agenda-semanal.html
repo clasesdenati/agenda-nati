@@ -3010,14 +3010,18 @@ function renderDebtors(){
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);';
     row.innerHTML = `
-      <div>
-        <div style="font-weight:700;">${escapeHtml(r.evt.title)}</div>
+      <div class="deb-wa" style="cursor:pointer;flex:1;">
+        <div style="font-weight:700;">${escapeHtml(r.evt.title)} <span style="font-weight:400;">💬</span></div>
         <div style="color:var(--ink-soft);font-size:0.78rem;">${typeLabels[r.evt.type]} · ${formatDMY(r.date)}</div>
       </div>
       <label style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
         <input type="checkbox" data-key="${r.id}::${r.date}" style="width:auto;"> Pagó
       </label>
     `;
+    // tocar al alumno: abre su WhatsApp con el recordatorio de esa clase (si debe varias, una por cada fila)
+    row.querySelector('.deb-wa').addEventListener('click', ()=>{
+      window.open(waUrl(r.evt, 'Te recuerdo que tenes pendiente de pago la clase del día: ' + formatDMY(r.date)), '_blank');
+    });
     list.appendChild(row);
   });
 
