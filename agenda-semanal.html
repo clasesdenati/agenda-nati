@@ -2467,11 +2467,12 @@ function waUrl(evt, text){
 // Aviso de reserva
 function buildReservaMessage(evt, dateISO){
   let dia;
+  const nombreDia = DAY_NAMES_FULL[mondayIndex(new Date(dateISO + 'T00:00:00'))];
   if(evt.type === 'recurrente'){
     const lista = joinEs(evtDays(evt).map(d=>DAY_NAMES_FULL[d]));
-    dia = `todos los ${lista}, desde el ${formatDMY(dateISO)}`;
+    dia = `todos los ${lista}, desde el ${nombreDia} ${formatDMY(dateISO)}`;
   } else {
-    dia = formatDMY(dateISO);
+    dia = `${nombreDia} ${formatDMY(dateISO)}`;
   }
   return `Se realizó la reserva de tu clase en las @clasesDeNati\n\nDía: ${dia}\nHora: ${evt.startTime}\n\nGuardala en tu agenda: ${buildGoogleCalendarLink(evt, dateISO)}`;
 }
