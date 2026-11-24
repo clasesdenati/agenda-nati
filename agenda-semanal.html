@@ -736,6 +736,7 @@ window.addEventListener('error', function(e){
         <button id="menuBuscarBtn">Buscar</button>
         <button id="menuDebenBtn">Deben</button>
         <button id="waitlistBtn">Espera</button>
+        <button id="arrancarBtn">Pendientes</button>
         <button id="menuRecordatoriosBtn">Confirmaciones</button>
         <button id="menuResumenBtn">Resumen</button>
         <button id="menuVistaBtn">Ver semana</button>
@@ -1165,6 +1166,27 @@ window.addEventListener('error', function(e){
 
     <div class="modal-actions">
       <button class="btn-primary" id="closeWaitlistBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: alumnos por arrancar ============ -->
+<div class="overlay" id="arrancarOverlay">
+  <div class="modal">
+    <h2>Pendientes</h2>
+    <div class="field">
+      <label for="arr-nombre">Nombre</label>
+      <input type="text" id="arr-nombre" autocomplete="off">
+      <div id="arrNameSuggest" class="name-suggest hidden"></div>
+    </div>
+    <div class="field">
+      <label for="arr-nota">Nota</label>
+      <input type="text" id="arr-nota" autocomplete="off">
+    </div>
+    <button class="btn-primary" id="addArrancarBtn" style="width:100%;margin-bottom:12px;">+ Agregar a la lista</button>
+    <div id="arrancarList" style="font-size:0.85rem;"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="closeArrancarBtn">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1813,7 +1835,7 @@ function snapToStep(hhmm){
 
 let pendingReschedule = null;     // "Cambiar este día": la clase original solo se saca cuando se guarda la nueva
 function openEditModal(existing, asCopy){
-  pendingReschedule = null;
+  pendingReschedule = null; pendingArrancarId = null;
   document.getElementById('soloAlumnoBtn').classList.toggle('hidden', !!(existing && !asCopy));
   editingId = (existing && !asCopy) ? existing.id : null;
   document.getElementById('editModalTitle').textContent = asCopy ? 'Duplicar evento' : 'Nuevo evento';
@@ -2132,6 +2154,7 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   } else {
     events.push(base);
   }
+  if(isNew && pendingArrancarId){ arrancar = arrancar.filter(x=> x.id !== pendingArrancarId); saveArrancar(); pendingArrancarId = null; }
   if(isNew && pendingReschedule){
     // ahora sí: sacar la clase normal de ese día puntual (la rutina sigue las demás semanas)
     const orig = events.find(e=> e.id === pendingReschedule.id);
@@ -3319,6 +3342,74 @@ function renderAvailability(){
   list.appendChild(hint);
 }
 
+/* ---------------- Pendientes (alumnos que necesitan arrancar, por orden de llegada) ---------------- */
+function loadArrancar(){
+  try{ const raw = localStorage.getItem('agenda_arrancar'); return raw ? JSON.parse(raw) : []; }catch(e){ return []; }
+}
+let arrancar = loadArrancar();
+function saveArrancar(){ localStorage.setItem('agenda_arrancar', JSON.stringify(arrancar)); }
+let pendingArrancarId = null;     // al guardar la clase del alumno agendado, sale de la lista
+const arrancarOverlay = document.getElementById('arrancarOverlay');
+function renderArrancar(){
+  const box = document.getElementById('arrancarList');
+  box.innerHTML = '';
+  if(!arrancar.length){ box.innerHTML = '<div style="color:var(--ink-soft);padding:8px 0;">No hay pendientes.</div>'; return; }
+  arrancar.slice().sort((a,b)=> a.createdAt - b.createdAt).forEach((a,i)=>{
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line);';
+    row.innerHTML = `<div style="flex:1;min-width:0;"><div style="font-weight:700;">${i+1}. ${escapeHtml(a.nombre)}</div>
+      <div style="color:var(--ink-soft);font-size:0.76rem;">desde el ${formatDMY(toISODate(new Date(a.createdAt)))}${a.nota ? ' · ' + escapeHtml(a.nota) : ''}</div></div>
+      <button type="button" class="btn-ghost arr-ag" style="border:1px solid var(--line-strong);border-radius:8px;padding:6px 10px;">Agendar</button>
+      <button type="button" class="btn-ghost arr-del" aria-label="Borrar" style="padding:6px 8px;">✕</button>`;
+    row.querySelector('.arr-del').addEventListener('click', ()=>{
+      if(!confirm('¿Sacar a ' + a.nombre + ' de la lista?')) return;
+      arrancar = arrancar.filter(x=> x.id !== a.id); saveArrancar(); renderArrancar();
+    });
+    row.querySelector('.arr-ag').addEventListener('click', ()=>{
+      arrancarOverlay.classList.remove('open');
+      openEditModal(null);
+      setType('recurrente');
+      document.getElementById('f-title').value = a.nombre;
+      if(a.nota) document.getElementById('f-notes').value = a.nota;
+      pendingArrancarId = a.id;     // se saca de la lista recién cuando guardes la clase
+    });
+    box.appendChild(row);
+  });
+}
+function renderArrSuggest(){
+  const box = document.getElementById('arrNameSuggest'), q = normName(document.getElementById('arr-nombre').value);
+  if(!q){ box.classList.add('hidden'); return; }
+  const list = alumnos.filter(a=> normName(a.nombre).includes(q) && normName(a.nombre) !== q)
+    .sort((a,b)=>{ const as = normName(a.nombre).startsWith(q) ? 0 : 1, bs = normName(b.nombre).startsWith(q) ? 0 : 1; return as - bs || a.nombre.localeCompare(b.nombre,'es'); })
+    .slice(0,5);
+  if(!list.length){ box.classList.add('hidden'); return; }
+  box.innerHTML = '';
+  list.forEach(a=>{
+    const b = document.createElement('button'); b.type = 'button';
+    b.innerHTML = `<span style="font-weight:600;">${escapeHtml(a.nombre)}</span><span class="ns-meta">${escapeHtml(a.nivel || '')}</span>`;
+    b.addEventListener('click', ()=>{ document.getElementById('arr-nombre').value = a.nombre; box.classList.add('hidden'); document.getElementById('arr-nota').focus(); });
+    box.appendChild(b);
+  });
+  box.classList.remove('hidden');
+}
+document.getElementById('arr-nombre').addEventListener('input', renderArrSuggest);   // si no está en la lista, igual se anota lo que escribas
+document.getElementById('arrancarBtn').addEventListener('click', ()=>{
+  debtorsMenu.classList.add('hidden');
+  document.getElementById('arr-nombre').value = ''; document.getElementById('arr-nota').value = '';
+  renderArrancar(); arrancarOverlay.classList.add('open');
+});
+document.getElementById('closeArrancarBtn').addEventListener('click', ()=> arrancarOverlay.classList.remove('open'));
+document.getElementById('addArrancarBtn').addEventListener('click', ()=>{
+  const nombre = document.getElementById('arr-nombre').value.trim();
+  if(!nombre){ document.getElementById('arr-nombre').focus(); return; }
+  arrancar.push({ id: 'ar' + Date.now() + Math.random().toString(36).slice(2,6), nombre, nota: document.getElementById('arr-nota').value.trim(), createdAt: Date.now() });
+  saveArrancar();
+  document.getElementById('arr-nombre').value = ''; document.getElementById('arr-nota').value = '';
+  document.getElementById('arrNameSuggest').classList.add('hidden');
+  renderArrancar();
+  document.getElementById('arr-nombre').focus();
+});
+
 /* ---------------- Lista de espera ---------------- */
 function loadWaitlist(){
   try{
@@ -3546,6 +3637,7 @@ function exportAllData(){
     agenda_registro: localStorage.getItem('agenda_registro') || '{}',
     agenda_referencia: localStorage.getItem('agenda_referencia') || '',
     agenda_espera: localStorage.getItem('agenda_espera') || '[]',
+    agenda_arrancar: localStorage.getItem('agenda_arrancar') || '[]',
     agenda_bloqueos: localStorage.getItem('agenda_bloqueos') || '[]',
     agenda_caja: localStorage.getItem('agenda_caja') || '{}',
     agenda_alumnos: localStorage.getItem('agenda_alumnos') || '[]',
@@ -3605,6 +3697,7 @@ function importFromText(text){
   if(data.agenda_registro)   localStorage.setItem('agenda_registro', asText(data.agenda_registro));
   if(data.agenda_referencia) localStorage.setItem('agenda_referencia', asText(data.agenda_referencia));
   if(data.agenda_espera)     localStorage.setItem('agenda_espera', asText(data.agenda_espera));
+  if(data.agenda_arrancar)   localStorage.setItem('agenda_arrancar', asText(data.agenda_arrancar));
   if(data.agenda_bloqueos)   localStorage.setItem('agenda_bloqueos', asText(data.agenda_bloqueos));
   if(data.agenda_caja)       { localStorage.setItem('agenda_caja', asText(data.agenda_caja)); try{ const c = JSON.parse(localStorage.getItem('agenda_caja')); caja = { saldo:+c.saldo||0, precio:+c.precio||0, anterior:+c.anterior||0 }; cajaEl = null; }catch(e){} }
   if(data.agenda_alumnos)    localStorage.setItem('agenda_alumnos', asText(data.agenda_alumnos));
