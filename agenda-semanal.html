@@ -293,6 +293,9 @@
     color:var(--brand);
   }
   .slot-hora span{ font-weight:400; font-family:var(--font-ui); font-size:0.62rem; color:var(--ink-soft); }
+  .slot-card.tarea{ background:var(--personal-bg); border:1.5px dashed var(--personal); min-height:109px; display:flex; flex-direction:column; }
+  .slot-card.tarea .slot-hora{ color:#12504a; }
+  .slot-card.tarea .tarea-txt{ flex:1; display:flex; align-items:center; justify-content:center; text-align:center; padding:2px 6px 8px; font-size:0.74rem; font-weight:600; color:#12504a; line-height:1.25; overflow:hidden; }
   .slot-card.libre{ background:transparent; border-style:dashed; padding-bottom:6px; }
   .slot-card.libre .slot-hora{ color:var(--ink-soft); padding-bottom:0; }
   .slot-card .event-block{ position:relative; left:auto; right:auto; top:auto; height:auto; margin-bottom:2px; padding:3px 5px; min-height:20px; justify-content:center; }
@@ -805,6 +808,14 @@ window.addEventListener('error', function(e){
     <div id="fieldsFecha" class="field">
       <label for="f-date">Fecha</label>
       <input type="date" id="f-date">
+    </div>
+
+    <div id="fieldsTareaHora" class="hidden">
+      <label style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:0.88rem;"><input type="checkbox" id="f-tarea-hora" style="width:auto;"> Con horario: ocupa un recuadro en la agenda</label>
+      <div class="row2 hidden" id="tareaHoraInputs">
+        <div class="field"><label>Desde</label><input type="time" id="f-t-desde"></div>
+        <div class="field"><label>Hasta</label><input type="time" id="f-t-hasta"></div>
+      </div>
     </div>
 
     <div class="row2" id="fieldsTime">
@@ -1477,7 +1488,16 @@ function slotsDelDia(date){
       mapa.set(m, []);
     });
   }
+  // tareas con horario (médico, running…): ocupan su propio recuadro y, si tienen "Hasta", tapan los cupos libres de ese rato
+  const tareas = eventsForDate(date).filter(e=> e.type === 'personal' && e.conHorario);
+  tareas.forEach(t=>{
+    if(!t.horaFin) return;
+    const a = minutesOf(t.startTime), b = minutesOf(t.horaFin);
+    Array.from(mapa.keys()).forEach(m=>{ if(m >= a && m < b && mapa.get(m).length === 0) mapa.delete(m); });
+  });
   let lista = Array.from(mapa.entries()).sort((a,b)=> a[0]-b[0]);
+  tareas.forEach(t=> lista.push([minutesOf(t.startTime), [t], true]));
+  lista.sort((a,b)=> a[0]-b[0] || (a[2]?1:0) - (b[2]?1:0));
   if(franja === 'manana') lista = lista.filter(([m])=> m < 14*60);
   else if(franja === 'tarde') lista = lista.filter(([m])=> m >= 14*60);
   return lista;
@@ -1511,7 +1531,7 @@ function renderCalendar(){
   visibleDates.forEach(date=>{
     const taskRow = document.createElement('div');
     taskRow.className = 'task-row' + (sameDate(date, today) ? ' hoy' : '');
-    const tareasDia = eventsForDate(date).filter(e=>e.type==='personal');
+    const tareasDia = eventsForDate(date).filter(e=>e.type==='personal' && !e.conHorario);
     if(tareasDia.length){
       if(franja === 'manana'){            // vista de 10hs: una por una; en 14hs y Día, solo la cantidad
         tareasDia.forEach(t=>{
@@ -1562,7 +1582,17 @@ function renderCalendar(){
       const r = refMinutes();
       openNewAt('aislada', iso, minutesToTime(r.length ? r[0] : 14*60), true);
     });
-    slotsDelDia(date).forEach(([m, evs])=>{
+    slotsDelDia(date).forEach(([m, evs, esTarea])=>{
+      if(esTarea){
+        const t = evs[0], card = document.createElement('div');
+        card.className = 'slot-card tarea';
+        card.dataset.m = m;
+        const rango = t.horaFin ? `${minutesToTime(m)} – ${t.horaFin}` : minutesToTime(m);
+        card.innerHTML = `<div class="slot-hora">${rango}</div><div class="tarea-txt">${escapeHtml(String(t.title).replace(/\s*\n\s*/g, ' · '))}</div>`;
+        card.addEventListener('click', (ev)=>{ ev.stopPropagation(); openDetail(t.id, iso); });
+        col.appendChild(card);
+        return;
+      }
       const card = document.createElement('div');
       card.className = 'slot-card' + (evs.length ? '' : ' libre');
       card.dataset.m = m;
@@ -1848,6 +1878,11 @@ function openEditModal(existing, asCopy){
 
   setType(existing ? existing.type : 'aislada');
 
+  { const ch = !!(existing && existing.type === 'personal' && existing.conHorario);
+    document.getElementById('f-tarea-hora').checked = ch;
+    document.getElementById('tareaHoraInputs').classList.toggle('hidden', !ch);
+    document.getElementById('f-t-desde').value = ch ? existing.startTime : '';
+    document.getElementById('f-t-hasta').value = ch ? (existing.horaFin || '') : ''; }
   document.getElementById('f-title').value = existing ? existing.title : '';
   document.getElementById('f-title-multiline').value = existing ? existing.title : '';
   document.getElementById('f-notes').value = existing ? (existing.notes||'') : '';
@@ -2010,6 +2045,10 @@ document.querySelectorAll('#f-days button').forEach(b=>{
   b.addEventListener('click', ()=> b.classList.toggle('active'));
 });
 
+document.getElementById('f-tarea-hora').addEventListener('change', (e)=>{
+  document.getElementById('tareaHoraInputs').classList.toggle('hidden', !e.target.checked);
+  if(e.target.checked) setTimeout(()=> document.getElementById('f-t-desde').focus(), 30);
+});
 function setType(t){
   currentType = t;
   document.querySelectorAll('#typePicker button').forEach(b=>{
@@ -2018,6 +2057,7 @@ function setType(t){
   document.getElementById('fieldsRecurrente').classList.toggle('hidden', t !== 'recurrente');
   document.getElementById('fieldsFecha').classList.toggle('hidden', t === 'recurrente');
   document.getElementById('fieldsTime').classList.toggle('hidden', t === 'personal');
+  document.getElementById('fieldsTareaHora').classList.toggle('hidden', t !== 'personal');
   document.getElementById('f-title-label').textContent = titleLabels[t];
   document.getElementById('f-title').placeholder = titlePlaceholders[t];
   document.getElementById('f-title').classList.toggle('hidden', t === 'personal');
@@ -2055,9 +2095,17 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
 
   let startTime, endTime;
   if(currentType === 'personal'){
-    // las tareas no ocupan horario en la grilla, se guarda un valor interno fijo
-    startTime = '00:00';
-    endTime = '00:15';
+    if(document.getElementById('f-tarea-hora').checked){
+      const desde = document.getElementById('f-t-desde').value, hasta = document.getElementById('f-t-hasta').value;
+      if(!desde){ alert('Falta la hora de la tarea.'); return; }
+      if(hasta && hasta <= desde){ alert('La hora "Hasta" tiene que ser después de "Desde".'); return; }
+      startTime = desde;
+      endTime = hasta || minutesToTime(Math.min(minutesOf(desde) + 60, 23*60 + 59));
+    } else {
+      // tarea sin horario: no ocupa lugar en la grilla, se guarda un valor interno fijo
+      startTime = '00:00';
+      endTime = '00:15';
+    }
   } else {
     startTime = getStartTime();
     endTime = getEndTime();
@@ -2102,6 +2150,10 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
     location: '',
     notes: document.getElementById('f-notes').value.trim(),
   };
+  if(currentType === 'personal' && document.getElementById('f-tarea-hora').checked){
+    base.conHorario = true;
+    base.horaFin = document.getElementById('f-t-hasta').value || '';
+  }
 
   let repDate;      // primer día en que aparece (para validar y para mostrarlo al guardar)
   let checkDates = [];
