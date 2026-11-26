@@ -813,8 +813,8 @@ window.addEventListener('error', function(e){
     <div id="fieldsTareaHora" class="hidden">
       <label style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:0.88rem;"><input type="checkbox" id="f-tarea-hora" style="width:auto;"> Con horario: ocupa un recuadro en la agenda</label>
       <div class="row2 hidden" id="tareaHoraInputs">
-        <div class="field"><label>Desde</label><input type="time" id="f-t-desde"></div>
-        <div class="field"><label>Hasta</label><input type="time" id="f-t-hasta"></div>
+        <div class="field"><label>Desde</label><div class="hm" data-for="f-t-desde"></div><input type="hidden" id="f-t-desde"></div>
+        <div class="field"><label>Hasta</label><div class="hm" data-for="f-t-hasta"></div><input type="hidden" id="f-t-hasta"></div>
       </div>
     </div>
 
@@ -1881,8 +1881,8 @@ function openEditModal(existing, asCopy){
   { const ch = !!(existing && existing.type === 'personal' && existing.conHorario);
     document.getElementById('f-tarea-hora').checked = ch;
     document.getElementById('tareaHoraInputs').classList.toggle('hidden', !ch);
-    document.getElementById('f-t-desde').value = ch ? existing.startTime : '';
-    document.getElementById('f-t-hasta').value = ch ? (existing.horaFin || '') : ''; }
+    setHM('f-t-desde', ch ? existing.startTime : '');
+    setHM('f-t-hasta', ch ? (existing.horaFin || '') : ''); }
   document.getElementById('f-title').value = existing ? existing.title : '';
   document.getElementById('f-title-multiline').value = existing ? existing.title : '';
   document.getElementById('f-notes').value = existing ? (existing.notes||'') : '';
@@ -2045,9 +2045,27 @@ document.querySelectorAll('#f-days button').forEach(b=>{
   b.addEventListener('click', ()=> b.classList.toggle('active'));
 });
 
+// hora en formato 24 hs (horas 00–23, minutos 00–59), sin AM/PM
+const _hmSel = {};
+document.querySelectorAll('.hm').forEach(w=>{
+  const id = w.dataset.for, hid = document.getElementById(id);
+  const mk = (n, from, to)=>{
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', n);
+    sel.innerHTML = '<option value="">--</option>' + Array.from({length: to-from+1}, (_,i)=> pad2(from+i)).map(v=>`<option>${v}</option>`).join('');
+    return sel;
+  };
+  const h = mk('hora', 0, 23), m = mk('minutos', 0, 59);
+  const sep = document.createElement('span'); sep.textContent = ':'; sep.style.cssText = 'font-weight:700;padding:0 4px;';
+  w.style.cssText = 'display:flex;align-items:center;'; w.append(h, sep, m);
+  const sync = ()=>{ hid.value = h.value ? h.value + ':' + (m.value || '00') : ''; };
+  h.addEventListener('change', ()=>{ if(h.value && !m.value) m.value = '00'; sync(); });
+  m.addEventListener('change', sync);
+  _hmSel[id] = { set(v){ h.value = v ? v.slice(0,2) : ''; m.value = v ? v.slice(3,5) : ''; sync(); }, focus(){ h.focus(); } };
+});
+function setHM(id, v){ _hmSel[id].set(v || ''); }
 document.getElementById('f-tarea-hora').addEventListener('change', (e)=>{
   document.getElementById('tareaHoraInputs').classList.toggle('hidden', !e.target.checked);
-  if(e.target.checked) setTimeout(()=> document.getElementById('f-t-desde').focus(), 30);
+  if(e.target.checked) setTimeout(()=> _hmSel['f-t-desde'].focus(), 30);
 });
 function setType(t){
   currentType = t;
