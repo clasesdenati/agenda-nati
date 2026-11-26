@@ -814,7 +814,7 @@ window.addEventListener('error', function(e){
       <label style="display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:0.88rem;"><input type="checkbox" id="f-tarea-hora" style="width:auto;"> Con horario: ocupa un recuadro en la agenda</label>
       <div class="row2 hidden" id="tareaHoraInputs">
         <div class="field"><label>Desde</label><div class="hm" data-for="f-t-desde"></div><input type="hidden" id="f-t-desde"></div>
-        <div class="field"><label>Hasta</label><div class="hm" data-for="f-t-hasta"></div><input type="hidden" id="f-t-hasta"></div>
+        
       </div>
     </div>
 
@@ -1488,11 +1488,10 @@ function slotsDelDia(date){
       mapa.set(m, []);
     });
   }
-  // tareas con horario (médico, running…): ocupan su propio recuadro y, si tienen "Hasta", tapan los cupos libres de ese rato
+  // tareas con horario (médico, running…): ocupan su propio recuadro y tapan el cupo libre de esa hora
   const tareas = eventsForDate(date).filter(e=> e.type === 'personal' && e.conHorario);
   tareas.forEach(t=>{
-    if(!t.horaFin) return;
-    const a = minutesOf(t.startTime), b = minutesOf(t.horaFin);
+    const a = minutesOf(t.startTime), b = a + 60;
     Array.from(mapa.keys()).forEach(m=>{ if(m >= a && m < b && mapa.get(m).length === 0) mapa.delete(m); });
   });
   let lista = Array.from(mapa.entries()).sort((a,b)=> a[0]-b[0]);
@@ -1587,7 +1586,7 @@ function renderCalendar(){
         const t = evs[0], card = document.createElement('div');
         card.className = 'slot-card tarea';
         card.dataset.m = m;
-        const rango = t.horaFin ? `${minutesToTime(m)} – ${t.horaFin}` : minutesToTime(m);
+        const rango = minutesToTime(m);
         card.innerHTML = `<div class="slot-hora">${rango}</div><div class="tarea-txt">${escapeHtml(String(t.title).replace(/\s*\n\s*/g, ' · '))}</div>`;
         card.addEventListener('click', (ev)=>{ ev.stopPropagation(); openDetail(t.id, iso); });
         col.appendChild(card);
@@ -1882,7 +1881,7 @@ function openEditModal(existing, asCopy){
     document.getElementById('f-tarea-hora').checked = ch;
     document.getElementById('tareaHoraInputs').classList.toggle('hidden', !ch);
     setHM('f-t-desde', ch ? existing.startTime : '');
-    setHM('f-t-hasta', ch ? (existing.horaFin || '') : ''); }
+ }
   document.getElementById('f-title').value = existing ? existing.title : '';
   document.getElementById('f-title-multiline').value = existing ? existing.title : '';
   document.getElementById('f-notes').value = existing ? (existing.notes||'') : '';
@@ -2114,11 +2113,10 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   let startTime, endTime;
   if(currentType === 'personal'){
     if(document.getElementById('f-tarea-hora').checked){
-      const desde = document.getElementById('f-t-desde').value, hasta = document.getElementById('f-t-hasta').value;
+      const desde = document.getElementById('f-t-desde').value;
       if(!desde){ alert('Falta la hora de la tarea.'); return; }
-      if(hasta && hasta <= desde){ alert('La hora "Hasta" tiene que ser después de "Desde".'); return; }
       startTime = desde;
-      endTime = hasta || minutesToTime(Math.min(minutesOf(desde) + 60, 23*60 + 59));
+      endTime = minutesToTime(Math.min(minutesOf(desde) + 60, 23*60 + 59));
     } else {
       // tarea sin horario: no ocupa lugar en la grilla, se guarda un valor interno fijo
       startTime = '00:00';
@@ -2170,7 +2168,6 @@ document.getElementById('saveEventBtn').addEventListener('click', ()=>{
   };
   if(currentType === 'personal' && document.getElementById('f-tarea-hora').checked){
     base.conHorario = true;
-    base.horaFin = document.getElementById('f-t-hasta').value || '';
   }
 
   let repDate;      // primer día en que aparece (para validar y para mostrarlo al guardar)
@@ -4307,7 +4304,7 @@ document.getElementById('fa-resumen-wa').addEventListener('click', ()=>{
     if(!blob){ msg.textContent = 'No hay clases para mostrar en esta vista.'; return; }
     const file = new File([blob], name, { type:'image/jpeg' });
     if(navigator.canShare && navigator.canShare({ files:[file] })){
-      try{ await navigator.share({ files:[file], text:'Hola! Te comparto el resumen de tus clases.' }); }catch(e){ /* si cancelás el menú no pasa nada */ }
+      try{ await navigator.share({ files:[file] }); }catch(e){ /* si cancelás el menú no pasa nada */ }
     } else {
       saveBlobAsFile(blob, name);
       msg.textContent = 'Este navegador no deja enviarla directo: se descargó la imagen, adjuntala desde WhatsApp.';
